@@ -1,14 +1,18 @@
 package com.searchDev.SearchDev.Model;
 
+import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.*;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
 
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -42,11 +46,13 @@ public class Users {
     @Column(name = "pofile_pic")
     private String profilePic;
 
-//    @Column(name ="skills",columnDefinition = "jsonb", nullable = true)
-//    private String skills;
+    @Type(JsonBinaryType.class)
+    @Column(name ="skills",columnDefinition = "jsonb", nullable = true)
+    private List<String> skills;
 
-//    @Column(name ="links",columnDefinition = "jsonb",nullable = true)
-//    private String links;
+    @Type(JsonBinaryType.class)
+    @Column(name ="links",columnDefinition = "jsonb",nullable = true)
+    private Map<String,Object> links;
 
     @Column (name="role")
     private String role;

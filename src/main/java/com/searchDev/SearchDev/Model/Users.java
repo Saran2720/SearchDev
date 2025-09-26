@@ -11,6 +11,7 @@ import org.hibernate.annotations.Type;
 
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -79,6 +80,9 @@ public class Users {
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL,orphanRemoval = true)
+    private List<Projects> projects = new ArrayList<>();
 
     @Override
     public String toString() {

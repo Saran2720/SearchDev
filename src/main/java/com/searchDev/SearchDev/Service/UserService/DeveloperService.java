@@ -1,8 +1,9 @@
-package com.searchDev.SearchDev.Service;
+package com.searchDev.SearchDev.Service.UserService;
 
 import com.searchDev.SearchDev.DTO.UpdateProfileReqDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
 import com.searchDev.SearchDev.Model.Users;
+import com.searchDev.SearchDev.Repository.ProjectRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -10,7 +11,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
 import java.util.UUID;
 
 
@@ -19,6 +19,9 @@ public class DeveloperService {
 
     @Autowired
     private UserRepo userRepo;
+
+    @Autowired
+    private ProjectRepo projectRepo;
 
     public Page<UserDetailsDTO> getAllDevelopers(Pageable pageable) {
         Page<Users> page=userRepo.findAll(pageable);
@@ -67,4 +70,14 @@ public class DeveloperService {
         Users updatedUser = userRepo.save(user);
         return mapToUserDetailsDto(updatedUser);
     }
+
+    public UserDetailsDTO getProfile(String email) {
+        Users user = userRepo.findByEmail(email);
+        if(user == null){
+            throw new UsernameNotFoundException("user not found");
+        }
+        return mapToUserDetailsDto(user);
+
+    }
+
 }

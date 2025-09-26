@@ -2,16 +2,12 @@ package com.searchDev.SearchDev.controller.User;
 
 
 import com.searchDev.SearchDev.DTO.PageResponseDTO;
-import com.searchDev.SearchDev.DTO.UpdateProfileReqDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
-import com.searchDev.SearchDev.Model.UserPrincipal;
-import com.searchDev.SearchDev.Service.DeveloperService;
+import com.searchDev.SearchDev.Service.UserService.DeveloperService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -72,15 +68,5 @@ public class UserController {
     }
 
 
-    //update profile
-    @PutMapping("/profile")
-    public ResponseEntity<UserDetailsDTO> updateProfile(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestBody UpdateProfileReqDTO request
-            ){
 
-        //userPrincipal.getUsername() will get the email
-        UserDetailsDTO updatedProfile = developerService.updateProfile(userPrincipal.getUsername(),request);
-        return ResponseEntity.ok(updatedProfile);
-    }
 }

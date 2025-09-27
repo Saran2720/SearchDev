@@ -16,12 +16,6 @@ public class ProjectController {
     @Autowired
     private ProjectService projectService;
 
-    //returning the list of projects in page
-    @GetMapping("/projects")
-    public String getProjects(){
-        return "projects";
-    }
-
     @PostMapping("/projects")
     public ResponseEntity<ProjectResDTO> createProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal,

@@ -38,5 +38,5 @@ Analytics dashboard for project engagement and user activity.
 
 📂 Getting Started
 Clone the repository:
-git clone https://github.com/yourusername/search-developer.git
+git clone https://github.com/Saran2720/SearchDev.git
 Navigate to backend folder and start Spring Boot server.

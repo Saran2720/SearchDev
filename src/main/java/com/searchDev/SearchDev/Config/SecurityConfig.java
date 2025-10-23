@@ -2,6 +2,7 @@ package com.searchDev.SearchDev.Config;
 
 
 import com.searchDev.SearchDev.Service.AuthService.JWTservice;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,8 +30,10 @@ public class SecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
-//    @Autowired
-//    private JWTservice
+    @Autowired
+    private CustomAuthEntryPoint customAuthEntryPoint;
+    @Autowired
+    private CustomAccessDeniedHandler customAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -40,9 +43,22 @@ public class SecurityConfig {
                         .requestMatchers("register","login")
                         .permitAll()
                         .anyRequest().authenticated())
-//                .formLogin(Customizer.withDefaults())
                 .httpBasic(Customizer.withDefaults())
                 .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .exceptionHandling(ex -> ex
+//                        // Handles missing/invalid JWT (no authentication)
+//                        .authenticationEntryPoint((req, res, e) -> {
+//                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+//                            res.setContentType("application/json");
+//                            res.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Invalid or missing token\"}");
+//                        })
+//                        // Handles valid JWT but forbidden access (authorization failure)
+//                        .accessDeniedHandler((req, res, e) -> {
+//                            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+//                            res.setContentType("application/json");
+//                            res.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied to this resource\"}");
+//                        })
+//                )
                 .addFilterBefore(jwtFilter,UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
@@ -61,13 +77,4 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-//    @Bean
-//    public UserDetailsService userDetailsService(){
-//        UserDetails user1 = User.withDefaultPasswordEncoder()
-//                .username("saran")
-//                .password("1234")
-//                .build();
-//
-//        return new InMemoryUserDetailsManager(user1);
-//    }
 }

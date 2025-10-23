@@ -22,6 +22,8 @@ public class UserDetailsDTO {
     private String role;
     private String experience;
     private String company;
+    private String profileImg;
+
 
     @Override
     public String toString() {

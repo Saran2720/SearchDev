@@ -9,14 +9,13 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class UserAuthService {
-    @Autowired
-    private PasswordEncoder encoder;
+
 
     @Autowired
     private UserRepo userRepo;
 
     public Users register(Users user){
-        user.setPassword(encoder.encode(user.getPassword()));
+
         return userRepo.save(user);
     }
 }

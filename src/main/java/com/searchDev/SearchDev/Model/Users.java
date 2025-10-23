@@ -32,6 +32,8 @@ public class Users {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
+
+
     @Column(nullable = false,unique = true)
     private String email;
 
@@ -44,8 +46,9 @@ public class Users {
     @Column(name = "bio" , length = 1000)
     private String bio;
 
-    @Column(name = "pofile_pic")
-    private String profilePic;
+    @Column(name = "profile_img", columnDefinition = "BYTEA")
+    @Basic(fetch = FetchType.LAZY)
+    private byte[] profileImg;
 
     @Type(JsonBinaryType.class)
     @Column(name ="skills",columnDefinition = "jsonb", nullable = true)
@@ -94,7 +97,6 @@ public class Users {
                 '}';
     }
 
-//    private List<Project> projects;
 
 
 

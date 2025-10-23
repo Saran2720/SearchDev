@@ -3,6 +3,7 @@ package com.searchDev.SearchDev.Service.Project;
 import com.searchDev.SearchDev.DTO.ProjectReqDTO;
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
+import com.searchDev.SearchDev.ExceptionHandler.AccessDeniedException;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.Projects;
 import com.searchDev.SearchDev.Model.Users;
@@ -15,7 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import org.springframework.security.access.AccessDeniedException;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -92,7 +93,7 @@ public class ProjectService {
 
         //check if the user is owner of this project
         if(!project.getOwner().getEmail().equals(email)){
-            throw new AccessDeniedException("You are not allowed to delete the project");
+            throw new AccessDeniedException("You are not allowed to update the project");
         }
 
         project.setProjectName(request.getProjectName());

@@ -10,10 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Base64;
 import java.util.UUID;
 
 
@@ -32,6 +32,11 @@ public class DeveloperService {
     }
 
     private UserDetailsDTO mapToUserDetailsDto(Users user){
+
+        String profileImgBase64 =null;
+        if(user.getProfileImg()!=null){
+            profileImgBase64= Base64.getEncoder().encodeToString(user.getProfileImg());
+        }
         return new UserDetailsDTO(
                 user.getId(),
                 user.getEmail(),
@@ -41,7 +46,8 @@ public class DeveloperService {
                 user.getLinks(),
                 user.getRole(),
                 user.getExperience(),
-                user.getCompany()
+                user.getCompany(),
+                profileImgBase64
         );
     }
 
@@ -68,6 +74,10 @@ public class DeveloperService {
         user.setRole(request.getRole());
         user.setExperience(request.getExperience());
         user.setCompany(request.getCompany());
+
+        if(request.getProfileImg()!=null){
+            user.setProfileImg(request.getProfileImg());
+        }
 
         Users updatedUser = userRepo.save(user);
         return mapToUserDetailsDto(updatedUser);

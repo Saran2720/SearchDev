@@ -4,8 +4,10 @@ import com.searchDev.SearchDev.Model.Projects;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface ProjectRepo extends JpaRepository<Projects, UUID> {
+    List<Projects> findByOwner_Id(UUID id);
 }

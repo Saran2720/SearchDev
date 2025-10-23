@@ -18,8 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Getter
-@Setter
+
 
 public class Projects {
     @Id
@@ -64,6 +63,38 @@ public class Projects {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public UUID getProjectId() {
+        return projectId;
+    }
+
+    public String getProjectName() {
+        return projectName;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public List<String> getTechStack() {
+        return techStack;
+    }
+
+    public Map<String, Object> getLinks() {
+        return links;
+    }
+
+    public Users getOwner() {
+        return owner;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
     @Override

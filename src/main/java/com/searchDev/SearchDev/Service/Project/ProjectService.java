@@ -1,21 +1,22 @@
 package com.searchDev.SearchDev.Service.Project;
 
-
 import com.searchDev.SearchDev.DTO.ProjectReqDTO;
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
+import com.searchDev.SearchDev.DTO.UserDetailsDTO;
+import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.Projects;
 import com.searchDev.SearchDev.Model.Users;
 import com.searchDev.SearchDev.Repository.ProjectRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
+import com.searchDev.SearchDev.Service.UserService.DeveloperService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
+import org.springframework.security.access.AccessDeniedException;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -46,8 +47,6 @@ public class ProjectService {
 //        System.out.println("after map to project res dto");
         System.out.println(res);
         return res;
-
-
     }
 
     private ProjectResDTO mapToProjectResDTO(Projects project) {
@@ -69,9 +68,51 @@ public class ProjectService {
         return projects.map(this::mapToProjectResDTO);
     }
 
-    public ProjectResDTO getProjectById(UUID projectId) {
+    public ProjectResDTO getProjectById(UUID projectId) throws ResourceNotFoundException {
         Projects project =projectRepo.findById(projectId)
-                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND, "Project not found"));
+                .orElseThrow(()->new ResourceNotFoundException("Project not found with id: " + projectId));
         return mapToProjectResDTO(project);
     }
+
+     @Autowired
+     private DeveloperService developerService;
+    public List<ProjectResDTO> getProfileProject(String email) {
+       UserDetailsDTO user =  developerService.getProfile(email);
+       if(user==null){
+           throw new IllegalArgumentException("User not found with this email: "+ email);
+       }
+       List<Projects> projects = projectRepo.findByOwner_Id(user.getId());
+       return projects.stream()
+               .map(this::mapToProjectResDTO)
+               .toList();
+    }
+
+    public ProjectResDTO updateProjectById(UUID projectId, ProjectReqDTO request,String email) throws ResourceNotFoundException, AccessDeniedException {
+        Projects project = projectRepo.findById(projectId).orElseThrow(()-> new ResourceNotFoundException("Project not found with id : "+projectId ));
+
+        //check if the user is owner of this project
+        if(!project.getOwner().getEmail().equals(email)){
+            throw new AccessDeniedException("You are not allowed to delete the project");
+        }
+
+        project.setProjectName(request.getProjectName());
+        project.setDescription(request.getDescription());
+        project.setTechStack(request.getTechStack());
+        project.setLinks(request.getLinks());
+
+        Projects updatedProject = projectRepo.save(project);
+        return mapToProjectResDTO(updatedProject);
+    }
+
+    public void deleteProjectById(UUID projectId, String email) throws AccessDeniedException, ResourceNotFoundException {
+        Projects project=  projectRepo.findById(projectId).orElseThrow(()-> new ResourceNotFoundException("Project not found with id:"+ projectId));
+
+        //check if the project owner id and email owner id is matching
+        if(!project.getOwner().getEmail().equals(email)){
+            throw new AccessDeniedException("You are not allowed to delete the project");
+        }
+        projectRepo.delete(project);
+    }
+
+
 }

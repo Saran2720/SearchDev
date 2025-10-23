@@ -2,14 +2,17 @@ package com.searchDev.SearchDev.Service.UserService;
 
 import com.searchDev.SearchDev.DTO.UpdateProfileReqDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
+import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.Users;
 import com.searchDev.SearchDev.Repository.ProjectRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -42,10 +45,9 @@ public class DeveloperService {
         );
     }
 
-    public UserDetailsDTO getDeveloperById(UUID userID) {
+    public UserDetailsDTO getDeveloperById(UUID userID)  {
            Users user= userRepo.findById(userID)
-                   .orElseThrow(()->new UsernameNotFoundException("Developer not found"));
-           System.out.println(user);
+                   .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Developer not found"));
            return mapToUserDetailsDto(user);
     }
 
@@ -57,7 +59,7 @@ public class DeveloperService {
     public UserDetailsDTO updateProfile(String email, UpdateProfileReqDTO request) {
         Users user = userRepo.findByEmail(email);
         if(user==null){
-            throw new UsernameNotFoundException("User not found with email: " + email);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found with email: " + email);
         }
         user.setUsername(request.getUsername());
         user.setBio(request.getBio());
@@ -74,10 +76,9 @@ public class DeveloperService {
     public UserDetailsDTO getProfile(String email) {
         Users user = userRepo.findByEmail(email);
         if(user == null){
-            throw new UsernameNotFoundException("user not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"user not found");
         }
         return mapToUserDetailsDto(user);
-
     }
 
 }

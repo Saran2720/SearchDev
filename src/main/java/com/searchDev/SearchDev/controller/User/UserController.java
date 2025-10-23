@@ -3,6 +3,7 @@ package com.searchDev.SearchDev.controller.User;
 
 import com.searchDev.SearchDev.DTO.PageResponseDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
+import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Service.UserService.DeveloperService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -39,9 +40,9 @@ public class UserController {
     }
 
     @RequestMapping("/developers/{userID}")
-    public ResponseEntity<UserDetailsDTO> developersById(@PathVariable UUID userID){
+    public ResponseEntity<UserDetailsDTO> developersById(@PathVariable UUID userID) throws ResourceNotFoundException {
         UserDetailsDTO developer =developerService.getDeveloperById(userID);
-        System.out.println(developer);
+//        System.out.println(developer);
         return ResponseEntity.ok(developer);
     }
 

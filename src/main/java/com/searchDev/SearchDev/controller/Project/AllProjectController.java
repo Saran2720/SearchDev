@@ -2,6 +2,7 @@ package com.searchDev.SearchDev.controller.Project;
 
 
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
+import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Service.Project.ProjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -32,7 +33,7 @@ public class AllProjectController {
     }
 
     @GetMapping("/{projectId}")
-    public ResponseEntity<ProjectResDTO> getProjectById(@PathVariable UUID projectId) {
+    public ResponseEntity<ProjectResDTO> getProjectById(@PathVariable UUID projectId) throws ResourceNotFoundException {
         ProjectResDTO project = projectService.getProjectById(projectId);
         return ResponseEntity.ok(project);
     }

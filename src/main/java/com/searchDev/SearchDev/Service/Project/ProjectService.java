@@ -43,15 +43,12 @@ public class ProjectService {
                 .build();
 
         Projects newProject=projectRepo.save(project);
-//        System.out.println(newProject);
         ProjectResDTO res =mapToProjectResDTO(newProject);
-//        System.out.println("after map to project res dto");
         System.out.println(res);
         return res;
     }
 
     private ProjectResDTO mapToProjectResDTO(Projects project) {
-//        System.out.println(project);
         return new ProjectResDTO(
                 project.getProjectId(),
                 project.getOwner().getId(),
@@ -114,6 +111,4 @@ public class ProjectService {
         }
         projectRepo.delete(project);
     }
-
-
 }

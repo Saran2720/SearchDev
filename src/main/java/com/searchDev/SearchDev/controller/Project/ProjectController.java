@@ -1,6 +1,7 @@
 package com.searchDev.SearchDev.controller.Project;
 
 
+import com.searchDev.SearchDev.DTO.ApiResDTO;
 import com.searchDev.SearchDev.DTO.ProjectReqDTO;
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
@@ -8,11 +9,14 @@ import com.searchDev.SearchDev.Model.UserPrincipal;
 import com.searchDev.SearchDev.Service.Project.ProjectService;
 import com.searchDev.SearchDev.Service.UserService.DeveloperService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import com.searchDev.SearchDev.ExceptionHandler.AccessDeniedException;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,15 +30,31 @@ public class ProjectController {
     private DeveloperService developerService;
 
     @PostMapping("/projects")
-    public ResponseEntity<ProjectResDTO> createProject(
+    public ResponseEntity<ApiResDTO<ProjectResDTO>> createProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody ProjectReqDTO request
             ){
-        String email = userPrincipal.getUsername();
-        ProjectResDTO project =projectService.createProject(email, request);
-        return ResponseEntity.ok(project);
+        try{
+            String email = userPrincipal.getUsername();
+            ProjectResDTO project =projectService.createProject(email, request);
+            ApiResDTO<ProjectResDTO> apiProjectRes = ApiResDTO.<ProjectResDTO>builder()
+                    .success(true)
+                    .status(HttpStatus.OK.value())
+                    .message("Project posted successfully")
+                    .data(project)
+                    .build();
+            return ResponseEntity.ok(apiProjectRes);
+        } catch (Exception e) {
+            ApiResDTO<ProjectResDTO> errorRes = ApiResDTO.<ProjectResDTO>builder()
+                    .success(false)
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .message(e.getMessage())
+                    .data(null)
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorRes);
+        }
     }
-
 
     @GetMapping("/projects")
     public ResponseEntity<List<ProjectResDTO>> getProfileProject(@AuthenticationPrincipal UserPrincipal userPrincipal){

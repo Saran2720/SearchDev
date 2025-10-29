@@ -33,47 +33,77 @@ public class ProjectController {
     public ResponseEntity<ApiResDTO<ProjectResDTO>> createProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody ProjectReqDTO request
-            ){
-        try{
-            String email = userPrincipal.getUsername();
-            ProjectResDTO project =projectService.createProject(email, request);
-            ApiResDTO<ProjectResDTO> apiProjectRes = ApiResDTO.<ProjectResDTO>builder()
-                    .success(true)
-                    .status(HttpStatus.OK.value())
-                    .message("Project posted successfully")
-                    .data(project)
-                    .build();
-            return ResponseEntity.ok(apiProjectRes);
-        } catch (Exception e) {
-            ApiResDTO<ProjectResDTO> errorRes = ApiResDTO.<ProjectResDTO>builder()
-                    .success(false)
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                    .message(e.getMessage())
-                    .data(null)
-                    .timestamp(LocalDateTime.now())
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorRes);
-        }
+    ) {
+        String email = userPrincipal.getUsername();
+        ProjectResDTO project = projectService.createProject(email, request);
+
+        ApiResDTO<ProjectResDTO> apiResponse = ApiResDTO.<ProjectResDTO>builder()
+                .success(true)
+                .status(HttpStatus.CREATED.value())
+                .message("Project created successfully")
+                .data(project)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
+
 
     @GetMapping("/projects")
-    public ResponseEntity<List<ProjectResDTO>> getProfileProject(@AuthenticationPrincipal UserPrincipal userPrincipal){
+    public ResponseEntity<ApiResDTO<List<ProjectResDTO>>> getProfileProject(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
         String email = userPrincipal.getUsername();
-       List<ProjectResDTO> projects =  projectService.getProfileProject(email);
-       return ResponseEntity.ok(projects);
+        List<ProjectResDTO> projects = projectService.getProfileProject(email);
+
+        ApiResDTO<List<ProjectResDTO>> response = ApiResDTO.<List<ProjectResDTO>>builder()
+                .success(true)
+                .status(HttpStatus.OK.value())
+                .message("Profile projects fetched successfully")
+                .data(projects)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
+
+
     @PutMapping("/projects/{id}")
-    public ResponseEntity<ProjectResDTO> updateProjectById(@PathVariable UUID id, @RequestBody ProjectReqDTO request, @AuthenticationPrincipal UserPrincipal userPrincipal) throws ResourceNotFoundException, AccessDeniedException {
+    public ResponseEntity<ApiResDTO<ProjectResDTO>> updateProjectById(
+            @PathVariable UUID id,
+            @RequestBody ProjectReqDTO request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) throws ResourceNotFoundException, AccessDeniedException {
         String email = userPrincipal.getUsername();
-        ProjectResDTO project= projectService.updateProjectById(id,request,email);
-       return ResponseEntity.ok(project);
+        ProjectResDTO updated = projectService.updateProjectById(id, request, email);
+
+        ApiResDTO<ProjectResDTO> apiResponse = ApiResDTO.<ProjectResDTO>builder()
+                .success(true)
+                .status(HttpStatus.OK.value())
+                .message("Project updated successfully")
+                .data(updated)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.ok(apiResponse);
     }
 
     @DeleteMapping("/projects/{id}")
-    public ResponseEntity<?> deleteProject(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal userPrincipal) throws AccessDeniedException, ResourceNotFoundException {
+    public ResponseEntity<ApiResDTO<Void>> deleteProject(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) throws AccessDeniedException, ResourceNotFoundException {
         String email = userPrincipal.getUsername();
-       projectService.deleteProjectById(id,email);
-       return ResponseEntity.noContent().build();// HTTP 204 No Content
+        projectService.deleteProjectById(id, email);
+
+        ApiResDTO<Void> apiResponse = ApiResDTO.<Void>builder()
+                .success(true)
+                .status(HttpStatus.NO_CONTENT.value())
+                .message("Project deleted successfully")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(apiResponse);
     }
 }

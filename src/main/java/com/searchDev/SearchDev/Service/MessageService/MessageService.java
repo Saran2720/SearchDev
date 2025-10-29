@@ -1,14 +1,13 @@
 package com.searchDev.SearchDev.Service.MessageService;
 
 import com.searchDev.SearchDev.DTO.MessageResDTO;
+import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.Message;
 import com.searchDev.SearchDev.Model.Users;
 import com.searchDev.SearchDev.Repository.MessageRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,14 +21,14 @@ public class MessageService {
     @Autowired
     private MessageRepo messageRepo;
 
-    public Message sendMessage(String senderEmail, UUID receiverId, String content){
+    public Message sendMessage(String senderEmail, UUID receiverId, String content) throws ResourceNotFoundException{
         Users sender = userRepo.findByEmail(senderEmail);
         if(sender==null){
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sender not found with email: " + senderEmail);
+            throw new ResourceNotFoundException("Sender not found with email: " + senderEmail);
         }
 
         Users receiver = userRepo.findById(receiverId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Receiver not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver not found with ID: " + receiverId));
 
         Message message = Message.builder()
                 .sender(sender)
@@ -40,8 +39,11 @@ public class MessageService {
       return  messageRepo.save(message);
     }
 
-    public List<MessageResDTO> getInbox(String email) {
+    public List<MessageResDTO> getInbox(String email) throws  ResourceNotFoundException{
         Users receiver = userRepo.findByEmail(email);
+        if (receiver == null) {
+            throw new ResourceNotFoundException("Receiver not found with email: " + email);
+        }
         UUID receiverID = receiver.getId();
         List<Message> messages = messageRepo.findByReceiverIdOrderByCreatedAtDesc(receiverID);
 
@@ -49,6 +51,4 @@ public class MessageService {
                 .map(MessageResDTO::fromEntity)
                 .toList();
     }
-
-
 }

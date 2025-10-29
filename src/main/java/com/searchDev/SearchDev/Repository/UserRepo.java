@@ -12,9 +12,8 @@ import java.util.UUID;
 @Repository
 public interface UserRepo extends JpaRepository<Users, UUID> {
     Users findByEmail(String email);
-
+    //for returning page of users by searching by username
     Page<Users> findByUsernameIgnoreCase(String username, Pageable pageable);
 
-    //for returning page of users by searching by username
 
 }

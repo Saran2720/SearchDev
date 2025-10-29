@@ -1,49 +1,82 @@
 package com.searchDev.SearchDev.ExceptionHandler;
 
+import com.searchDev.SearchDev.DTO.ApiResDTO;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
-        Map<String, Object> error = new LinkedHashMap<>();
-        error.put("status", HttpStatus.FORBIDDEN.value());
-        error.put("error", "Forbidden");
-        error.put("message", ex.getMessage());
-        error.put("timestamp", LocalDateTime.now());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    public ResponseEntity<ApiResDTO<?>> handleAccessDenied(AccessDeniedException ex) {
+        ApiResDTO<?> response = ApiResDTO.builder()
+                .success(false)
+                .status(HttpStatus.FORBIDDEN.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
-        return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
+    public ResponseEntity<ApiResDTO<?>> handleResourceNotFound(ResourceNotFoundException ex) {
+        ApiResDTO<?> response = ApiResDTO.builder()
+                .success(false)
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
-        return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    public ResponseEntity<ApiResDTO<?>> handleBadRequest(IllegalArgumentException ex) {
+        ApiResDTO<?> response = ApiResDTO.builder()
+                .success(false)
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
-        return buildErrorResponse("An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<ApiResDTO<?>> handleGeneralException(Exception ex) {
+        ApiResDTO<?> response = ApiResDTO.builder()
+                .success(false)
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
-    private ResponseEntity<Map<String, Object>> buildErrorResponse(String message, HttpStatus status) {
-        Map<String, Object> error = Map.of(
-                "status", status.value(),
-                "error", status.getReasonPhrase(),
-                "message", message,
-                "timestamp", LocalDateTime.now()
+    @ExceptionHandler(UserAlreadyExistException.class)
+    public ResponseEntity<ApiResDTO<?>> handleUserAlreadyExist(UserAlreadyExistException ex){
+        ApiResDTO<?> response = ApiResDTO.builder()
+                .success(false)
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .data(null)
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResDTO<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ApiResDTO.builder()
+                        .success(false)
+                        .status(HttpStatus.CONFLICT.value())
+                        .message("Email already exists (DB constraint)")
+                        .timestamp(LocalDateTime.now())
+                        .build()
         );
-        return new ResponseEntity<>(error, status);
     }
 }

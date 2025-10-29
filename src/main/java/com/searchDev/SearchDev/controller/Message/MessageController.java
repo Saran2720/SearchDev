@@ -25,54 +25,39 @@ public class MessageController {
     private MessageService messageService;
 
     @PostMapping("/send")
-    public ResponseEntity<ApiResDTO<MessageResDTO>> send(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody MessageReqDTO messageReqDTO){
+    public ResponseEntity<ApiResDTO<MessageResDTO>> send(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestBody MessageReqDTO messageReqDTO
+    ) {
+        String senderEmail = userPrincipal.getUsername();
+        Message message = messageService.sendMessage(senderEmail, messageReqDTO.getReceiverId(), messageReqDTO.getContent());
+        MessageResDTO messageResDTO = MessageResDTO.fromEntity(message);
 
-        try{
-            String senderEmail = userPrincipal.getUsername();
-            Message message=messageService.sendMessage(senderEmail,messageReqDTO.getReceiverId(),messageReqDTO.getContent());
-            MessageResDTO messageResDTO=MessageResDTO.fromEntity(message);
-            ApiResDTO<MessageResDTO> apiResDTO = ApiResDTO.<MessageResDTO>builder()
-                    .success(true)
-                    .status(HttpStatus.OK.value())
-                    .message("Message send successfully")
-                    .data(messageResDTO)
-                    .timestamp(LocalDateTime.now())
-                    .build();
-            return ResponseEntity.ok(apiResDTO);
-        }catch(Exception e){
-            ApiResDTO<MessageResDTO> errorResponse = ApiResDTO.<MessageResDTO>builder()
-                    .success(false)
-                    .status(HttpStatus.BAD_REQUEST.value())
-                    .message(e.getMessage())
-                    .data(null)
-                    .timestamp(LocalDateTime.now())
-                    .build();
-            return ResponseEntity.badRequest().body(errorResponse);
-        }
+        ApiResDTO<MessageResDTO> response = ApiResDTO.<MessageResDTO>builder()
+                .success(true)
+                .status(HttpStatus.OK.value())
+                .message("Message sent successfully")
+                .data(messageResDTO)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/inbox")
-    public ResponseEntity<ApiResDTO<List<MessageResDTO>>> getInbox(@AuthenticationPrincipal UserPrincipal userPrincipal){
-        try{
-            List<MessageResDTO> messageResDTOList= messageService.getInbox(userPrincipal.getUsername());
-            ApiResDTO<List<MessageResDTO>> listApiResDTO = ApiResDTO.<List<MessageResDTO>>builder()
-                    .success(true)
-                    .status(HttpStatus.OK.value())
-                    .message("inbox message fetched successfully")
-                    .data(messageResDTOList)
-                    .timestamp(LocalDateTime.now())
-                    .build();
-            return ResponseEntity.ok(listApiResDTO);
-        }catch(Exception e){
-            ApiResDTO<List<MessageResDTO>> errorResponse = ApiResDTO.<List<MessageResDTO>>builder()
-                    .success(false)
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                    .message(e.getMessage())
-                    .data(null)
-                    .timestamp(LocalDateTime.now())
-                    .build();
+    public ResponseEntity<ApiResDTO<List<MessageResDTO>>> getInbox(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        List<MessageResDTO> inbox = messageService.getInbox(userPrincipal.getUsername());
 
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
+        ApiResDTO<List<MessageResDTO>> response = ApiResDTO.<List<MessageResDTO>>builder()
+                .success(true)
+                .status(HttpStatus.OK.value())
+                .message("Inbox messages fetched successfully")
+                .data(inbox)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 }

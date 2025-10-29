@@ -1,13 +1,10 @@
 package com.searchDev.SearchDev.Service.AuthService;
 
-import com.searchDev.SearchDev.Model.UserPrincipal;
-import com.searchDev.SearchDev.Model.Users;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -15,8 +12,6 @@ import io.jsonwebtoken.security.Keys;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 @Service
@@ -30,20 +25,30 @@ public class JWTservice {
   public void init(){
       this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
   }
-    public String generateToken(Authentication authentication) {
+  //access token generation
+    public String generateAccessToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
         String email = userPrincipal.getUsername();
-//        System.out.println("email from the userprincipal extraction :"+ email);
-//        Map<String,Object> map =  new HashMap<>();
+
         return Jwts.builder()
-//                .claims()
-//                .and(map)
                 .subject(email)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis()+1000 *60 *30))
-//                .and()
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    //refresh token generation
+    public String generateRefreshToken(Authentication authentication) {
+              UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
+              String email = userPrincipal.getUsername();
+
+              return Jwts.builder()
+                      .subject(email)
+                      .issuedAt(new Date(System.currentTimeMillis()))
+                      .expiration(new Date(System.currentTimeMillis()+1000L * 60 * 60 *24 * 7))
+                      .signWith(key, SignatureAlgorithm.HS256)
+                      .compact();
     }
 
 
@@ -78,4 +83,6 @@ public class JWTservice {
     private Date extractExpiration(String token){
         return extractClaim(token,Claims::getExpiration);
     }
+
+
 }

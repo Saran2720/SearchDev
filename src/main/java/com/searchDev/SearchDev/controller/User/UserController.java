@@ -14,12 +14,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
+@RequestMapping("/developers")
 public class UserController {
 
     @Autowired
     private DeveloperService developerService;
 
-    @RequestMapping("/developers")
+    @GetMapping()
     public ResponseEntity<PageResponseDTO<UserDetailsDTO>> developers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "2") int size
@@ -39,14 +40,14 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @RequestMapping("/developers/{userID}")
+    @GetMapping("/{userID}")
     public ResponseEntity<UserDetailsDTO> developersById(@PathVariable UUID userID) throws ResourceNotFoundException {
         UserDetailsDTO developer =developerService.getDeveloperById(userID);
-//        System.out.println(developer);
+        System.out.println(developer);
         return ResponseEntity.ok(developer);
     }
 
-    @RequestMapping("/developers/username/{username}")
+    @GetMapping("/username/{username}")
     public ResponseEntity<PageResponseDTO<UserDetailsDTO>> developersByUsername(
             @PathVariable String username,
             @RequestParam(defaultValue = "0") int page,
@@ -67,7 +68,4 @@ public class UserController {
        );
        return ResponseEntity.ok(response);
     }
-
-
-
 }

@@ -13,6 +13,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -38,27 +40,15 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(customiser->customiser.disable())
+                .csrf(AbstractHttpConfigurer::disable)
+                .logout(LogoutConfigurer::disable)
+                .exceptionHandling(ex->ex.authenticationEntryPoint(customAuthEntryPoint))
                 .authorizeHttpRequests(request->request
-                        .requestMatchers("register","login")
+                        .requestMatchers("register","login","refresh")
                         .permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults())
                 .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-//                .exceptionHandling(ex -> ex
-//                        // Handles missing/invalid JWT (no authentication)
-//                        .authenticationEntryPoint((req, res, e) -> {
-//                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-//                            res.setContentType("application/json");
-//                            res.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Invalid or missing token\"}");
-//                        })
-//                        // Handles valid JWT but forbidden access (authorization failure)
-//                        .accessDeniedHandler((req, res, e) -> {
-//                            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
-//                            res.setContentType("application/json");
-//                            res.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied to this resource\"}");
-//                        })
-//                )
                 .addFilterBefore(jwtFilter,UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

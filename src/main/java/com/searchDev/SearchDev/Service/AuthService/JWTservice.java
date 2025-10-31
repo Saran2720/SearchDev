@@ -32,6 +32,7 @@ public class JWTservice {
 
         return Jwts.builder()
                 .subject(email)
+                .claim("type","Access")
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis()+1000 *60 *30))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -45,6 +46,7 @@ public class JWTservice {
 
               return Jwts.builder()
                       .subject(email)
+                      .claim("type","Refresh")
                       .issuedAt(new Date(System.currentTimeMillis()))
                       .expiration(new Date(System.currentTimeMillis()+1000L * 60 * 60 *24 * 7))
                       .signWith(key, SignatureAlgorithm.HS256)
@@ -72,9 +74,19 @@ public class JWTservice {
                 .getPayload();
     }
 
-    public boolean validateToken(String token, UserDetails userDetails) {
+    public boolean validateToken(String token, UserDetails userDetails , boolean isFromAccessToken) {
       final String email = extractUserEmail(token);
+      final String tokenType = extractTokenType(token);
+      //only access token is allowed
+      if(tokenType.equals("Refresh") && isFromAccessToken){
+          throw new SecurityException("Invalid token access");
+      }
       return (email.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    public String extractTokenType(String token){
+      Claims claims = extractAllClaims(token);
+       return claims.get("type", String.class);
     }
 
     private boolean isTokenExpired(String token){
@@ -83,6 +95,4 @@ public class JWTservice {
     private Date extractExpiration(String token){
         return extractClaim(token,Claims::getExpiration);
     }
-
-
 }

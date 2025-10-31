@@ -15,4 +15,11 @@ public class TokenBlacklistService {
    public boolean istokenBlackListed(String token){
        return blackListedTokens.contains(token);
    }
+
+    @Override
+    public String toString() {
+        return "TokenBlacklistService{" +
+                "blackListedTokens=" + blackListedTokens +
+                '}';
+    }
 }

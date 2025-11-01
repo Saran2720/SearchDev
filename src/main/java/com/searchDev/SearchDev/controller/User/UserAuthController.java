@@ -1,9 +1,6 @@
 package com.searchDev.SearchDev.controller.User;
 
-import com.searchDev.SearchDev.DTO.ApiResDTO;
-import com.searchDev.SearchDev.DTO.AuthResDTO;
-import com.searchDev.SearchDev.DTO.LoginReqDTO;
-import com.searchDev.SearchDev.DTO.RegisterReqDTO;
+import com.searchDev.SearchDev.DTO.*;
 import com.searchDev.SearchDev.Model.Users;
 import com.searchDev.SearchDev.Service.AuthService.JWTservice;
 import com.searchDev.SearchDev.Service.AuthService.MyUserDetailsService;
@@ -159,4 +156,18 @@ public class UserAuthController {
         }
         return ResponseEntity.ok(Map.of("message", "Logout successful"));
     }
+
+
+
+    @PostMapping("/forget-password")
+    public ResponseEntity<?> forgetPassword(@RequestBody ForgetPasswordReqDTO req){
+        String genericMsg = "If an account with that email exists, a password reset link has been sent.";
+        try{
+            Users user = userAuthService.forgetPassword(req.getEmail());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+        return null;
+    }
+
 }

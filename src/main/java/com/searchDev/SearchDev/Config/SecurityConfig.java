@@ -44,7 +44,14 @@ public class SecurityConfig {
                 .logout(LogoutConfigurer::disable)
                 .exceptionHandling(ex->ex.authenticationEntryPoint(customAuthEntryPoint))
                 .authorizeHttpRequests(request->request
-                        .requestMatchers("register","login","refresh","forget-password")
+                        .requestMatchers(
+                                "/register",
+                                "/login",
+                                "/refresh",
+                                "/forget-password",
+                                "/reset-password",
+                                "/reset-password/**"
+                        )
                         .permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults())

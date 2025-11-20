@@ -8,4 +8,5 @@ import java.util.UUID;
 
 @Repository
 public interface TokenRepo extends JpaRepository<PasswordResetToken,UUID> {
+    PasswordResetToken findByResetTokenId(UUID uuid);
 }

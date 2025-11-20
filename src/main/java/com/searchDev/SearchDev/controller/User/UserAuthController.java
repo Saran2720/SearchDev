@@ -4,29 +4,21 @@ import com.searchDev.SearchDev.DTO.*;
 import com.searchDev.SearchDev.Model.Users;
 import com.searchDev.SearchDev.Service.AuthService.JWTservice;
 import com.searchDev.SearchDev.Service.AuthService.MyUserDetailsService;
-import com.searchDev.SearchDev.Service.AuthService.TokenBlacklistService;
 import com.searchDev.SearchDev.Service.AuthService.UserAuthService;
+import com.searchDev.SearchDev.Service.UserService.UserNotFoundException;
 import io.jsonwebtoken.io.IOException;
-import jakarta.servlet.http.HttpServletRequest;
-import org.antlr.v4.runtime.Token;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-
+import org.springframework.web.bind.annotation.*;
+import java.net.URI;
+import org.springframework.http.HttpHeaders;
 import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -46,45 +38,52 @@ public class UserAuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(
-            @RequestBody RegisterReqDTO registerReqDTO
-            ) throws IOException {
+            @RequestBody RegisterReqDTO registerReqDTO) throws IOException {
 
-            Users user = new Users();
-            user.setEmail(registerReqDTO.getEmail());
-            user.setUsername(registerReqDTO.getUsername());
-            user.setPassword(encoder.encode(registerReqDTO.getPassword()));
-            return ResponseEntity.ok(userAuthService.register(user));
+        Users user = new Users();
+        user.setEmail(registerReqDTO.getEmail());
+        user.setUsername(registerReqDTO.getUsername());
+        user.setPassword(encoder.encode(registerReqDTO.getPassword()));
+        return ResponseEntity.ok(userAuthService.register(user));
     }
 
+    // login and generate the tokens
     @Autowired
     JWTservice jwTservice;
+
     @PostMapping("/login")
-    public ResponseEntity<ApiResDTO<AuthResDTO>> login(@RequestBody LoginReqDTO request) {
+    public ResponseEntity<?> login(@RequestBody LoginReqDTO request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getEmail(),
-                            request.getPassword()
-                    )
-            );
+                            request.getPassword()));
 
             String accessToken = jwTservice.generateAccessToken(authentication);
             String refreshToken = jwTservice.generateRefreshToken(authentication);
 
-            AuthResDTO tokenResponse = AuthResDTO.builder()
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
+            ResponseCookie accessCookie = ResponseCookie.from("access_Token", accessToken)
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .sameSite("Strict")
+                    .maxAge(60 * 15) // valid for 15 mins
+                    .build();
+            ResponseCookie refreshCookie = ResponseCookie.from("refresh_Token", refreshToken)
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .sameSite("Strict")
+                    .maxAge(60 * 60 * 24 * 7) // valid for 7 days
                     .build();
 
-            ApiResDTO<AuthResDTO> response = ApiResDTO.<AuthResDTO>builder()
-                    .success(true)
-                    .status(HttpStatus.OK.value())
-                    .message("Login successful")
-                    .data(tokenResponse)
-                    .timestamp(LocalDateTime.now())
-                    .build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
+            headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(Map.of("message", "Login successful"));
 
         } catch (Exception e) {
             ApiResDTO<AuthResDTO> errorResponse = ApiResDTO.<AuthResDTO>builder()
@@ -99,75 +98,73 @@ public class UserAuthController {
         }
     }
 
-
-    private final TokenBlacklistService tokenBlacklistService;
-    @Autowired
-    UserAuthController(TokenBlacklistService tokenBlacklistService){
-        this.tokenBlacklistService=tokenBlacklistService;
-    }
+    // refresh token
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@RequestBody Map<String, String> request){
-        String refreshToken = request.get("refreshToken");
-
-        if(refreshToken==null || refreshToken.isEmpty()){
-            return ResponseEntity.badRequest().body("Refresh token is missing");
+    public ResponseEntity<?> refresh(@CookieValue(value = "refresh_Token", required = false) String refreshToken) {
+        try {
+            HttpHeaders headers = userAuthService.refresh(refreshToken);
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(Map.of("message", "access token generated"));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         }
+    }
 
-        if(tokenBlacklistService.istokenBlackListed(refreshToken)){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Refresh token validity is over");
+    // logout the user by using tokens from http cookie
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(
+            @CookieValue(value = "refresh_Token", required = false) String refreshToken,
+            @CookieValue(value = "access_Token", required = false) String accessToken) {
+
+        HttpHeaders headers = userAuthService.logout(accessToken, refreshToken);
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(Map.of("message", "Logout successful"));
+    }
+
+    @PostMapping("/forget-password")
+    public ResponseEntity<?> forgetPassword(@RequestBody ForgetPasswordReqDTO req) {
+        String genericMsg = "If an account with that email exists, a password reset link has been sent.";
+        System.out.println(genericMsg);
+        try {
+            userAuthService.forgetPassword(req.getEmail());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
-        try{
-            String type = jwTservice.extractTokenType(refreshToken);
-            if(!type.equals("Refresh")){
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid token type"));
-            }
-            //check validity of the token
-            String email= jwTservice.extractUserEmail(refreshToken);
-            UserDetails userDetails = myUserDetailsService.loadUserByUsername(email);
+        return ResponseEntity.ok(Map.of("message", genericMsg));
+    }
 
-            if(!jwTservice.validateToken(refreshToken,userDetails,false)){ //sending false because of we use refresh token
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid or expired refresh token"));
-            }
-//             Generate new access token
-            Authentication authentication =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            String newAccessToken = jwTservice.generateAccessToken(authentication);
-            return ResponseEntity.ok(Map.of(
-                    "accessToken", newAccessToken,
-                    "message", "Access token refreshed successfully"
-            ));
-        }catch (Exception e){
+    // validating the reset token when the user click the link in the email
+    @GetMapping("/reset-password")
+    public ResponseEntity<?> verifyResetLink(@RequestParam("token") String token) {
+        try {
+            URI frontendURI = userAuthService.verifyResetLink(token);
+            return ResponseEntity.status(HttpStatus.FOUND).location(frontendURI).build();
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody AuthResDTO tokens) {
-        String accessToken = tokens.getAccessToken();
-        String refreshToken = tokens.getRefreshToken();
+    // after validating the reset token , the user can change the password
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestParam("token") String token,
+            @RequestBody Map<String, String> request) {
+        String newPassword = request.get("newPassword");
 
-        if (accessToken != null) {
-            tokenBlacklistService.blackListToken(accessToken);
-        }
-        if (refreshToken != null) {
-            tokenBlacklistService.blackListToken(refreshToken);
-        }
-        return ResponseEntity.ok(Map.of("message", "Logout successful"));
-    }
-
-
-
-    @PostMapping("/forget-password")
-    public ResponseEntity<?> forgetPassword(@RequestBody ForgetPasswordReqDTO req){
-        String genericMsg = "If an account with that email exists, a password reset link has been sent.";
-        try{
-            Users user = userAuthService.forgetPassword(req.getEmail());
+        try {
+            userAuthService.resetPassword(token, newPassword);
+            return ResponseEntity.ok(Map.of("message", "Password reset successful"));
+        } catch (UserNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Something went wrong"));
         }
-        return null;
     }
 
 }

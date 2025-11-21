@@ -120,23 +120,59 @@ public class UserAuthController {
     public ResponseEntity<?> logout(
             @CookieValue(value = "refresh_Token", required = false) String refreshToken,
             @CookieValue(value = "access_Token", required = false) String accessToken) {
-
-        HttpHeaders headers = userAuthService.logout(accessToken, refreshToken);
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(Map.of("message", "Logout successful"));
+        try {
+            HttpHeaders headers = userAuthService.logout(accessToken, refreshToken);
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(Map.of("message", "Logout successful"));
+        } catch (SecurityException e) {
+            // Handle security-related exceptions (e.g., invalid token format)
+            ApiResDTO<?> errorResponse = ApiResDTO.builder()
+                    .success(false)
+                    .status(HttpStatus.UNAUTHORIZED.value())
+                    .message(e.getMessage())
+                    .data(null)
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        } catch (IllegalArgumentException e) {
+            // Handle invalid arguments
+            ApiResDTO<?> errorResponse = ApiResDTO.builder()
+                    .success(false)
+                    .status(HttpStatus.BAD_REQUEST.value())
+                    .message(e.getMessage())
+                    .data(null)
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            // Handle any other unexpected exceptions
+            ApiResDTO<?> errorResponse = ApiResDTO.builder()
+                    .success(false)
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                    .message("An error occurred during logout")
+                    .data(null)
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
+    
     @PostMapping("/forget-password")
     public ResponseEntity<?> forgetPassword(@RequestBody ForgetPasswordReqDTO req) {
         String genericMsg = "If an account with that email exists, a password reset link has been sent.";
-        System.out.println(genericMsg);
         try {
             userAuthService.forgetPassword(req.getEmail());
+            return ResponseEntity.ok(Map.of("message", genericMsg));
+        } catch (UserNotFoundException e) {
+            // Keep response generic but maintain correct status for client-side handling if needed
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Unable to process request"));
         }
-        return ResponseEntity.ok(Map.of("message", genericMsg));
     }
 
     // validating the reset token when the user click the link in the email

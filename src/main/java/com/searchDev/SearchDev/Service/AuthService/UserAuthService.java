@@ -5,25 +5,22 @@ import com.searchDev.SearchDev.Model.PasswordResetToken;
 import com.searchDev.SearchDev.Model.Users;
 import com.searchDev.SearchDev.Repository.TokenRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
-import com.searchDev.SearchDev.Service.AuthService.JWTservice;
 import com.searchDev.SearchDev.Service.MailService.EmailService;
-import com.searchDev.SearchDev.Service.AuthService.MyUserDetailsService;
 import com.searchDev.SearchDev.Service.UserService.UserNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.searchDev.SearchDev.Service.AuthService.TokenBlacklistService;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.stereotype.Service;
-import org.springframework.http.ResponseCookie;
 
 import java.net.URI;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -37,6 +34,12 @@ public class UserAuthService {
 
     @Autowired
     private MyUserDetailsService userDetailsService;
+
+    @Value("${app.auth.reset-link-base-url:http://localhost:8080/reset-password}")
+    private String backendResetLinkBaseUrl;
+
+    @Value("${app.frontend.reset-form-url:http://localhost:3000/reset-password}")
+    private String frontendResetFormUrl;
 
     public Users register(Users user) {
         Users isExistUser = userRepo.findByEmail(user.getEmail());
@@ -55,32 +58,48 @@ public class UserAuthService {
     }
 
     public HttpHeaders logout(String accessToken, String refreshToken) {
-        // blacklist the tokens
-        if (accessToken != null) {
-            tokenBlacklistService.blackListToken(accessToken);
+        try {
+            // Normalize empty strings to null
+            if (accessToken != null && accessToken.trim().isEmpty()) {
+                accessToken = null;
+            }
+            if (refreshToken != null && refreshToken.trim().isEmpty()) {
+                refreshToken = null;
+            }
+
+            // blacklist the tokens if they exist
+            if (accessToken != null) {
+                tokenBlacklistService.blackListToken(accessToken);
+            }
+            if (refreshToken != null) {
+                tokenBlacklistService.blackListToken(refreshToken);
+            }
+
+            // Clear cookies regardless of token presence
+            ResponseCookie clearAccess = ResponseCookie.from("access_Token", "")
+                    .path("/")
+                    .maxAge(0)
+                    .httpOnly(true)
+                    .sameSite("Strict")
+                    .build();
+
+            ResponseCookie clearRefresh = ResponseCookie.from("refresh_Token", "")
+                    .path("/")
+                    .maxAge(0)
+                    .httpOnly(true)
+                    .sameSite("Strict")
+                    .build();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.SET_COOKIE, clearAccess.toString());
+            headers.add(HttpHeaders.SET_COOKIE, clearRefresh.toString());
+
+            return headers;
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid token format: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to process logout: " + e.getMessage(), e);
         }
-        if (refreshToken != null) {
-            tokenBlacklistService.blackListToken(refreshToken);
-        }
-        ResponseCookie clearAccess = ResponseCookie.from("access_Token", "")
-                .path("/")
-                .maxAge(0)
-                .httpOnly(true)
-                .sameSite("Strict")
-                .build();
-
-        ResponseCookie clearRefresh = ResponseCookie.from("refresh_Token", "")
-                .path("/")
-                .maxAge(0)
-                .httpOnly(true)
-                .sameSite("Strict")
-                .build();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.SET_COOKIE, clearAccess.toString());
-        headers.add(HttpHeaders.SET_COOKIE, clearRefresh.toString());
-
-        return headers;
     }
 
 
@@ -134,10 +153,20 @@ public class UserAuthService {
     @Autowired
     private EmailService emailService;
 
+    @SuppressWarnings("null")
     public void forgetPassword(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
         Users isExistUser = userRepo.findByEmail(email);
         if (isExistUser == null) {
             throw new UserNotFoundException("User not found");
+        }
+
+        List<PasswordResetToken> oldTokens = tokenRepo.findAllByEmail(email);
+        if (!oldTokens.isEmpty()) {
+            tokenRepo.deleteAll(oldTokens);
         }
 
         PasswordResetToken prt = PasswordResetToken.builder()
@@ -145,25 +174,23 @@ public class UserAuthService {
                 .time(LocalDateTime.now().plusMinutes(15))
                 .build();
         tokenRepo.save(prt);
-        UUID token = prt.getResetTokenId();
 
-        String resetLink = "http://localhost:8080/reset-password?token=" + token;
+        String resetLink = buildBackendResetLink(prt.getResetTokenId());
         emailService.sendMail(email, resetLink);
-        System.out.println("Reset link for " + email + ": " + resetLink);
     }
 
     // validating the reset token when the user click the link in the email
     public URI verifyResetLink(String token) {
-        PasswordResetToken prt = tokenRepo.findByResetTokenId(UUID.fromString(token));
-        if (prt == null || prt.getTime().isBefore(LocalDateTime.now())) {
-            if (prt != null) {
-                tokenRepo.delete(prt);
-            }
+        UUID tokenId = parseToken(token);
+        PasswordResetToken prt = tokenRepo.findByResetTokenId(tokenId)
+                .orElseThrow(() -> new DateTimeException("Invalid reset token"));
+
+        if (prt.getTime().isBefore(LocalDateTime.now())) {
+            tokenRepo.delete(prt);
             throw new DateTimeException("Invalid or reset link is expired");
         }
 
-        // valid token -> redirect user to frontend page
-        return URI.create("valid");
+        return URI.create(buildFrontendResetUrl(token));
     }
 
     // reseting the user password
@@ -171,14 +198,43 @@ public class UserAuthService {
     private PasswordEncoder passwordEncoder;
 
     public void resetPassword(String token, String newPassword) {
-        PasswordResetToken prt = tokenRepo.findByResetTokenId(UUID.fromString(token));
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new IllegalArgumentException("New password is required");
+        }
+
+        UUID tokenId = parseToken(token);
+        PasswordResetToken prt = tokenRepo.findByResetTokenId(tokenId)
+                .orElseThrow(() -> new DateTimeException("Invalid or expired reset token"));
+
+        if (prt.getTime().isBefore(LocalDateTime.now())) {
+            tokenRepo.delete(prt);
+            throw new DateTimeException("Invalid or expired reset token");
+        }
 
         Users user = userRepo.findByEmail(prt.getEmail());
         if (user == null) {
+            tokenRepo.delete(prt);
             throw new UserNotFoundException("User not found");
         }
+
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepo.save(user);
         tokenRepo.delete(prt);
+    }
+
+    private UUID parseToken(String token) {
+        try {
+            return UUID.fromString(token);
+        } catch (IllegalArgumentException e) {
+            throw new DateTimeException("Invalid reset token");
+        }
+    }
+
+    private String buildBackendResetLink(UUID tokenId) {
+        return backendResetLinkBaseUrl + "?token=" + tokenId;
+    }
+
+    private String buildFrontendResetUrl(String token) {
+        return frontendResetFormUrl + "?token=" + token;
     }
 }

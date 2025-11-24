@@ -1,12 +1,10 @@
 package com.searchDev.SearchDev.controller.Message;
-
 import com.searchDev.SearchDev.DTO.ApiResDTO;
 import com.searchDev.SearchDev.DTO.MessageReqDTO;
 import com.searchDev.SearchDev.DTO.MessageResDTO;
 import com.searchDev.SearchDev.Model.Message;
 import com.searchDev.SearchDev.Model.UserPrincipal;
 import com.searchDev.SearchDev.Service.MessageService.MessageService;
-import org.apache.coyote.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/message")

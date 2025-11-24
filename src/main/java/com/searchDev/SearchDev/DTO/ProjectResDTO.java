@@ -1,11 +1,12 @@
 package com.searchDev.SearchDev.DTO;
 
 import lombok.*;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 
 @Getter
 @Setter

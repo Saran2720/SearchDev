@@ -11,6 +11,9 @@ import com.searchDev.SearchDev.Repository.ProjectRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
 import com.searchDev.SearchDev.Service.UserService.DeveloperService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -23,12 +26,19 @@ import java.util.UUID;
 @Service
 public class ProjectService {
 
+    private final CacheManager cacheManager;
+    @Autowired
+    public ProjectService(CacheManager cacheManager){
+        this.cacheManager = cacheManager;
+    }
+
     @Autowired
     private UserRepo userRepo;
 
     @Autowired
     private ProjectRepo projectRepo;
 
+    //create a own project
     public ProjectResDTO createProject(String email, ProjectReqDTO request) {
         Users user = userRepo.findByEmail(email);
         if(user==null){
@@ -60,13 +70,17 @@ public class ProjectService {
                 project.getUpdatedAt()
         );
     }
-
+    
+    //getting all the projects
     public Page<ProjectResDTO> getAllProjects(Pageable pageable) {
         Page<Projects> projects=projectRepo.findAll(pageable);
         return projects.map(this::mapToProjectResDTO);
     }
 
+    //getting a prject by projectId
+    @Cacheable(value = "project", key = "#projectId")
     public ProjectResDTO getProjectById(UUID projectId) throws ResourceNotFoundException {
+        System.out.println("db hit get");
         Projects project =projectRepo.findById(projectId)
                 .orElseThrow(()->new ResourceNotFoundException("Project not found with id: " + projectId));
         return mapToProjectResDTO(project);
@@ -74,18 +88,22 @@ public class ProjectService {
 
      @Autowired
      private DeveloperService developerService;
+     //getting the user profile projects
     public List<ProjectResDTO> getProfileProject(String email) {
        UserDetailsDTO user =  developerService.getProfile(email);
        if(user==null){
            throw new IllegalArgumentException("User not found with this email: "+ email);
        }
-       List<Projects> projects = projectRepo.findByOwner_Id(user.getId());
+       List<Projects> projects = projectRepo.findByOwnerIdOrderByCreatedAtDesc(user.getId());
        return projects.stream()
                .map(this::mapToProjectResDTO)
                .toList();
     }
-
+    
+    //updating the profile projects only by the projects owner
+    @CacheEvict(value = "project", key = "#projectId")
     public ProjectResDTO updateProjectById(UUID projectId, ProjectReqDTO request,String email) throws ResourceNotFoundException, AccessDeniedException {
+        System.out.println("db hit put");
         Projects project = projectRepo.findById(projectId).orElseThrow(()-> new ResourceNotFoundException("Project not found with id : "+projectId ));
 
         //check if the user is owner of this project
@@ -101,7 +119,9 @@ public class ProjectService {
         Projects updatedProject = projectRepo.save(project);
         return mapToProjectResDTO(updatedProject);
     }
+    
 
+    // deleting the profile projects only by the projects owner
     public void deleteProjectById(UUID projectId, String email) throws AccessDeniedException, ResourceNotFoundException {
         Projects project=  projectRepo.findById(projectId).orElseThrow(()-> new ResourceNotFoundException("Project not found with id:"+ projectId));
 

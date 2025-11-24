@@ -43,7 +43,7 @@ public class UserController {
     @GetMapping("/{userID}")
     public ResponseEntity<UserDetailsDTO> developersById(@PathVariable UUID userID) throws ResourceNotFoundException {
         UserDetailsDTO developer =developerService.getDeveloperById(userID);
-        System.out.println(developer);
+        // System.out.println(developer);
         return ResponseEntity.ok(developer);
     }
 

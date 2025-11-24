@@ -48,7 +48,7 @@ public class ProjectController {
         return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
-
+   // getting the profile projects
     @GetMapping("/projects")
     public ResponseEntity<ApiResDTO<List<ProjectResDTO>>> getProfileProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal
@@ -68,7 +68,7 @@ public class ProjectController {
     }
 
 
-
+   // updating the profile project 
     @PutMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> updateProjectById(
             @PathVariable UUID id,
@@ -89,6 +89,7 @@ public class ProjectController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    // Delete the profile projects
     @DeleteMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<Void>> deleteProject(
             @PathVariable UUID id,

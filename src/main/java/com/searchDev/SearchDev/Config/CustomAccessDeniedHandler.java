@@ -15,10 +15,17 @@ import java.util.Map;
 @Component
 public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
+    private final ObjectMapper objectMapper; // never create a new obj mapper beacuse it overrides the spring default
+                                             // configuration
+
+    public CustomAccessDeniedHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     @Override
     public void handle(HttpServletRequest request,
-                       HttpServletResponse response,
-                       AccessDeniedException accessDeniedException) throws IOException {
+            HttpServletResponse response,
+            AccessDeniedException accessDeniedException) throws IOException {
 
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType("application/json");
@@ -28,9 +35,8 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
                 "error", "Forbidden",
                 "message", "You are not allowed to access this resource",
                 "path", request.getRequestURI(),
-                "timestamp", LocalDateTime.now().toString()
-        );
+                "timestamp", LocalDateTime.now().toString());
 
-        new ObjectMapper().writeValue(response.getOutputStream(), body);
+        objectMapper.writeValue(response.getOutputStream(), body);
     }
 }

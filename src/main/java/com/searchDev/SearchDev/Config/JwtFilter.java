@@ -3,6 +3,9 @@ package com.searchDev.SearchDev.Config;
 import com.searchDev.SearchDev.Service.AuthService.JWTservice;
 import com.searchDev.SearchDev.Service.AuthService.MyUserDetailsService;
 import com.searchDev.SearchDev.Service.AuthService.TokenBlacklistService;
+
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.security.SignatureException;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -30,13 +34,26 @@ public class JwtFilter extends OncePerRequestFilter {
     @Autowired
     private TokenBlacklistService tokenBlacklistService;
 
-    @Autowired
-    private CustomAuthEntryPoint customAuthEntryPoint;
+    private boolean isPublicPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.equals("/login") ||
+               path.equals("/register") ||
+               path.equals("/refresh") ||
+               path.equals("/forget-password") ||
+               path.startsWith("/reset-password");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        // String authHeader = request.getHeader("Authorization");
+
+        // 1. Skip JWT validation for public routes
+        if (isPublicPath(request)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 2. Extract access token from cookies
         String token = null;
         String email = null;
 
@@ -48,35 +65,59 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
 
+        // 3. Missing token
         if (token == null) {
-            filterChain.doFilter(request, response);
+            writeError(response, 401, "NO_ACCESS_TOKEN");
             return;
         }
 
+        // 4. Token blacklisted
         if (tokenBlacklistService.istokenBlackListed(token)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Token is blacklisted\"}");
+            writeError(response, 401, "TOKEN_BLACKLISTED");
             return;
         }
+
+        // 5. Extract and validate token
         try {
             email = jwTservice.extractUserEmail(token);
+
+        } catch (ExpiredJwtException e) {
+            writeError(response, 401, "ACCESS_TOKEN_EXPIRED");
+            return;
+
+        } catch (MalformedJwtException e) {
+            writeError(response, 401, "INVALID_ACCESS_TOKEN");
+            return;
+
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Invalid or expired token\"}");
+            writeError(response, 401, "TOKEN_ERROR");
             return;
         }
 
+        // 6. Validate user and set authentication
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = myUserDetailsService.loadUserByUsername(email);
-            if (jwTservice.validateToken(token, userDetails, true)) {// sending true beacuse of we using access token
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
-                        null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            try {
+                if (jwTservice.validateToken(token, userDetails, true)) {
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
+            } catch (Exception e) {
+                writeError(response, 401, "INVALID_ACCESS_TOKEN");
+                return;
             }
         }
+
         filterChain.doFilter(request, response);
     }
+
+    private void writeError(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"status\":" + status + ",\"message\":\"" + message + "\"}");
+    }
 }
+

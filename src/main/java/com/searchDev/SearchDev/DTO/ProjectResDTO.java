@@ -35,7 +35,5 @@ public class ProjectResDTO {
                 ", updatedAt=" + updatedAt +
                 '}';
     }
-
-
 }
 

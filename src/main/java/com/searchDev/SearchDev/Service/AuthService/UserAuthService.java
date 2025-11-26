@@ -189,7 +189,6 @@ public class UserAuthService {
             tokenRepo.delete(prt);
             throw new DateTimeException("Invalid or reset link is expired");
         }
-
         return URI.create(buildFrontendResetUrl(token));
     }
 

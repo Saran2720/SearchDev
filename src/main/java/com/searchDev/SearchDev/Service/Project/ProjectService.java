@@ -19,7 +19,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-
 import java.util.List;
 import java.util.UUID;
 
@@ -27,8 +26,9 @@ import java.util.UUID;
 public class ProjectService {
 
     private final CacheManager cacheManager;
+
     @Autowired
-    public ProjectService(CacheManager cacheManager){
+    public ProjectService(CacheManager cacheManager) {
         this.cacheManager = cacheManager;
     }
 
@@ -38,10 +38,10 @@ public class ProjectService {
     @Autowired
     private ProjectRepo projectRepo;
 
-    //create a own project
+    // create a own project
     public ProjectResDTO createProject(String email, ProjectReqDTO request) {
         Users user = userRepo.findByEmail(email);
-        if(user==null){
+        if (user == null) {
             throw new UsernameNotFoundException("user not found cannot add project");
         }
         Projects project = Projects.builder()
@@ -52,8 +52,8 @@ public class ProjectService {
                 .owner(user)
                 .build();
 
-        Projects newProject=projectRepo.save(project);
-        ProjectResDTO res =mapToProjectResDTO(newProject);
+        Projects newProject = projectRepo.save(project);
+        ProjectResDTO res = mapToProjectResDTO(newProject);
         System.out.println(res);
         return res;
     }
@@ -67,47 +67,34 @@ public class ProjectService {
                 project.getTechStack(),
                 project.getLinks(),
                 project.getCreatedAt(),
-                project.getUpdatedAt()
-        );
+                project.getUpdatedAt());
     }
-    
-    //getting all the projects
+
+    // getting all the projects
     public Page<ProjectResDTO> getAllProjects(Pageable pageable) {
-        Page<Projects> projects=projectRepo.findAll(pageable);
+        Page<Projects> projects = projectRepo.findAll(pageable);
         return projects.map(this::mapToProjectResDTO);
     }
 
-    //getting a prject by projectId
+    // getting a prject by projectId
     @Cacheable(value = "project", key = "#projectId")
     public ProjectResDTO getProjectById(UUID projectId) throws ResourceNotFoundException {
         System.out.println("db hit get");
-        Projects project =projectRepo.findById(projectId)
-                .orElseThrow(()->new ResourceNotFoundException("Project not found with id: " + projectId));
+        Projects project = projectRepo.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
         return mapToProjectResDTO(project);
     }
 
-     @Autowired
-     private DeveloperService developerService;
-     //getting the user profile projects
-    public List<ProjectResDTO> getProfileProject(String email) {
-       UserDetailsDTO user =  developerService.getProfile(email);
-       if(user==null){
-           throw new IllegalArgumentException("User not found with this email: "+ email);
-       }
-       List<Projects> projects = projectRepo.findByOwnerIdOrderByCreatedAtDesc(user.getId());
-       return projects.stream()
-               .map(this::mapToProjectResDTO)
-               .toList();
-    }
-    
-    //updating the profile projects only by the projects owner
+    // updating the profile projects only by the projects owner
     @CacheEvict(value = "project", key = "#projectId")
-    public ProjectResDTO updateProjectById(UUID projectId, ProjectReqDTO request,String email) throws ResourceNotFoundException, AccessDeniedException {
+    public ProjectResDTO updateProjectById(UUID projectId, ProjectReqDTO request, String email)
+            throws ResourceNotFoundException, AccessDeniedException {
         System.out.println("db hit put");
-        Projects project = projectRepo.findById(projectId).orElseThrow(()-> new ResourceNotFoundException("Project not found with id : "+projectId ));
+        Projects project = projectRepo.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id : " + projectId));
 
-        //check if the user is owner of this project
-        if(!project.getOwner().getEmail().equals(email)){
+        // check if the user is owner of this project
+        if (!project.getOwner().getEmail().equals(email)) {
             throw new AccessDeniedException("You are not allowed to update the project");
         }
 
@@ -119,14 +106,30 @@ public class ProjectService {
         Projects updatedProject = projectRepo.save(project);
         return mapToProjectResDTO(updatedProject);
     }
-    
+
+    @Autowired
+    private DeveloperService developerService;
+
+    // getting the user profile projects
+    public List<ProjectResDTO> getProfileProject(String email) {
+        UserDetailsDTO user = developerService.getProfile(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found with this email: " + email);
+        }
+        List<Projects> projects = projectRepo.findByOwnerIdOrderByCreatedAtDesc(user.getId());
+        return projects.stream()
+                .map(this::mapToProjectResDTO)
+                .toList();
+    }
 
     // deleting the profile projects only by the projects owner
-    public void deleteProjectById(UUID projectId, String email) throws AccessDeniedException, ResourceNotFoundException {
-        Projects project=  projectRepo.findById(projectId).orElseThrow(()-> new ResourceNotFoundException("Project not found with id:"+ projectId));
+    public void deleteProjectById(UUID projectId, String email)
+            throws AccessDeniedException, ResourceNotFoundException {
+        Projects project = projectRepo.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id:" + projectId));
 
-        //check if the project owner id and email owner id is matching
-        if(!project.getOwner().getEmail().equals(email)){
+        // check if the project owner id and email owner id is matching
+        if (!project.getOwner().getEmail().equals(email)) {
             throw new AccessDeniedException("You are not allowed to delete the project");
         }
         projectRepo.delete(project);

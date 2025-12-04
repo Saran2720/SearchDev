@@ -3,59 +3,88 @@ package com.searchDev.SearchDev.Service.UserService;
 import com.searchDev.SearchDev.DTO.UpdateProfileReqDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
 import com.searchDev.SearchDev.Model.Users;
-import com.searchDev.SearchDev.Repository.ProjectRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
+import com.searchDev.SearchDev.Service.RedisService.RedisService;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Duration;
 import java.util.Base64;
 import java.util.UUID;
-
+import java.util.List;
 
 @Service
 public class DeveloperService {
 
     private final UserRepo userRepo;
-    private final CacheManager cacheManager;
+    private RedisService redisService;
+
 
     @Autowired
-    public DeveloperService(UserRepo userRepo, ProjectRepo projectRepo, CacheManager cacheManager){
+    public DeveloperService(UserRepo userRepo,RedisService redisService){
         this.userRepo=userRepo;
-        this.cacheManager = cacheManager;
+        this.redisService=redisService;
     }
-
+    
+    //get all the developers
     public Page<UserDetailsDTO> getAllDevelopers(Pageable pageable) {
-        Page<Users> page=userRepo.findAll(pageable);
-        return page.map(this::mapToUserDetailsDto);
-    }
-    
-    @Cacheable(value = "userProfile" , key = "#userID")
-    public UserDetailsDTO getDeveloperById(UUID userID)  {
-        Users user = findUserByIdOrThrow(userID);
-        return mapToUserDetailsDto(user);
-    }
-    
-    // @Cacheable(value = "developerProfile", key = "#username")
-    public Page<UserDetailsDTO> getDevelopersByUsername(String username, Pageable pageable) {
-        Page<Users> usersPage = userRepo.findByUsernameIgnoreCase(username, pageable);
-        if (usersPage.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No developers found with username: " + username);
+        String key = "developers:all"+ pageable.getPageNumber()+":"+pageable.getPageSize();
+        //get the data if it is cached
+        List<UserDetailsDTO> cachedList = redisService.get(key,List.class);
+        if(cachedList!=null){
+            int totalElements = cachedList.size();
+            return new PageImpl<>(cachedList,pageable,totalElements);
         }
-        return usersPage.map(this::mapToUserDetailsDto);
+
+        //if not cached get it from db
+        Page<Users> page=userRepo.findAll(pageable);
+        List<UserDetailsDTO> dtoList = page.map(this::mapToUserDetailsDto).getContent();
+        //store it on redis 
+        redisService.save(key, dtoList, Duration.ofHours(1));
+        return new PageImpl<>(dtoList,pageable,page.getTotalElements());
+    }
+    
+    //get the developer by id
+    public UserDetailsDTO getDeveloperById(UUID userID)  {
+        String key = "developer:"+userID;
+        UserDetailsDTO cachedUser = redisService.get(key,UserDetailsDTO.class);
+        if(cachedUser!=null){
+            return cachedUser;
+        }
+        System.out.println("db hit for dev profile using ID");
+        Users user = findUserByIdOrThrow(userID);
+        UserDetailsDTO userDetails = mapToUserDetailsDto(user);
+        redisService.save(key,userDetails,Duration.ofHours(1));
+        return userDetails;
+    }
+    
+   //get the developers by username
+    public Page<UserDetailsDTO> getDevelopersByUsername(String username, Pageable pageable) {
+        String key = "developers:username:"+username+":"+pageable.getPageNumber()+":"+pageable.getPageSize();
+        List<UserDetailsDTO> cachedList = redisService.get(key,List.class);
+        if(cachedList!=null){
+            return new PageImpl<>(cachedList,pageable,cachedList.size());
+        }
+        System.out.println("db hit for dev profile using username");
+        Page<Users> page=userRepo.findByUsernameIgnoreCase(username, pageable);
+        List<UserDetailsDTO> dtoList = page.map(this::mapToUserDetailsDto).getContent();
+        redisService.save(key,dtoList,Duration.ofHours(1));
+        return new PageImpl<>(dtoList,pageable,page.getTotalElements());
     }
 
 
-    @CacheEvict(value = "userProfile", key = "#email")
     public UserDetailsDTO updateProfile(String email, UpdateProfileReqDTO request) {
         Users user = findUserByEmailOrThrow(email);
         UUID userId = user.getId(); // Get user ID before updating
-
+        String key = "developer:"+userId;
+        redisService.delete(key);
+        System.out.println("db hit for update dev profile");
         // Update user details only if non-null
         if (request.getUsername() != null) user.setUsername(request.getUsername());
         if (request.getBio() != null) user.setBio(request.getBio());
@@ -67,20 +96,18 @@ public class DeveloperService {
         if (request.getProfileImg() != null) user.setProfileImg(request.getProfileImg());
 
         Users updatedUser = userRepo.save(user);
-        
-        // Evict cache by user ID as well (for getDeveloperById)
-        if (cacheManager != null) {
-            var cache = cacheManager.getCache("userProfile");
-            if (cache != null) {
-                cache.evict(userId);
-            }
-        }
-        
+        UserDetailsDTO userDetails = mapToUserDetailsDto(updatedUser);
+        redisService.save(key,userDetails,Duration.ofHours(1));
         return mapToUserDetailsDto(updatedUser);
     }
 
-    @Cacheable(value = "userProfile" , key = "#email") // caching the user profile data
     public UserDetailsDTO getProfile(String email) {
+        String key = "profile:"+email;
+        UserDetailsDTO cachedProfile = redisService.get(key,UserDetailsDTO.class);
+        if(cachedProfile!=null){
+            return cachedProfile;
+        }
+        System.out.println("db hit for get dev profile");
         Users user = findUserByEmailOrThrow(email);
         return mapToUserDetailsDto(user);
     }
@@ -90,7 +117,7 @@ public class DeveloperService {
 
     private Users findUserByIdOrThrow(UUID userId){
         // System.out.println("db hit for dev profile using ID");
-        return userRepo.findById(userId).orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND,"Developer not found"));
+        return userRepo.findById(userId).orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found"));
     }
 
     private Users findUserByEmailOrThrow(String email) {

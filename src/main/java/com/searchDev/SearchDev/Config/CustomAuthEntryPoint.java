@@ -15,10 +15,17 @@ import java.util.Map;
 @Component
 public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
 
+    private final ObjectMapper objectMapper; // never create a new obj mapper beacuse it overrides the spring default
+    // configuration
+
+    public CustomAuthEntryPoint(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     @Override
     public void commence(HttpServletRequest request,
-                         HttpServletResponse response,
-                         AuthenticationException authException) throws IOException {
+            HttpServletResponse response,
+            AuthenticationException authException) throws IOException {
 
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType("application/json");
@@ -28,9 +35,8 @@ public class CustomAuthEntryPoint implements AuthenticationEntryPoint {
                 "error", "Unauthorized",
                 "message", "Invalid or missing authentication token",
                 "path", request.getRequestURI(),
-                "timestamp", LocalDateTime.now().toString()
-        );
+                "timestamp", LocalDateTime.now().toString());
 
-        new ObjectMapper().writeValue(response.getOutputStream(), body);
+        objectMapper.writeValue(response.getOutputStream(), body);
     }
 }

@@ -21,7 +21,7 @@ public class UserController {
     private DeveloperService developerService;
 
     @GetMapping()
-    public ResponseEntity<PageResponseDTO<UserDetailsDTO>> developers(
+    public ResponseEntity<PageResponseDTO<UserDetailsDTO>> getAllDevelopers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "2") int size
     ){

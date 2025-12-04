@@ -44,7 +44,7 @@ public class MessageController {
     @GetMapping("/inbox")
     public ResponseEntity<ApiResDTO<List<MessageResDTO>>> getInbox(
             @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
+    ) { 
         List<MessageResDTO> inbox = messageService.getInbox(userPrincipal.getUsername());
 
         ApiResDTO<List<MessageResDTO>> response = ApiResDTO.<List<MessageResDTO>>builder()

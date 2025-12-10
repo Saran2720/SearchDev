@@ -5,6 +5,7 @@ import com.searchDev.SearchDev.DTO.UserDetailsDTO;
 import com.searchDev.SearchDev.Model.Users;
 import com.searchDev.SearchDev.Repository.UserRepo;
 import com.searchDev.SearchDev.Service.RedisService.RedisService;
+import com.searchDev.SearchDev.Service.S3service.S3Service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -12,10 +13,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
-import java.util.Base64;
 import java.util.UUID;
 import java.util.List;
 
@@ -24,12 +25,14 @@ public class DeveloperService {
 
     private final UserRepo userRepo;
     private RedisService redisService;
+    private S3Service s3Service;
 
 
     @Autowired
-    public DeveloperService(UserRepo userRepo,RedisService redisService){
+    public DeveloperService(UserRepo userRepo,RedisService redisService, S3Service s3Service){
         this.userRepo=userRepo;
         this.redisService=redisService;
+        this.s3Service=s3Service;
     }
     
     //get all the developers
@@ -65,26 +68,42 @@ public class DeveloperService {
     }
     
    //get the developers by username
+
     public Page<UserDetailsDTO> getDevelopersByUsername(String username, Pageable pageable) {
         String key = "developers:username:"+username+":"+pageable.getPageNumber()+":"+pageable.getPageSize();
+        @SuppressWarnings("unchecked")
         List<UserDetailsDTO> cachedList = redisService.get(key,List.class);
+
         if(cachedList!=null){
             return new PageImpl<>(cachedList,pageable,cachedList.size());
         }
+
         System.out.println("db hit for dev profile using username");
+
         Page<Users> page=userRepo.findByUsernameIgnoreCase(username, pageable);
         List<UserDetailsDTO> dtoList = page.map(this::mapToUserDetailsDto).getContent();
+        //cache the data
         redisService.save(key,dtoList,Duration.ofHours(1));
         return new PageImpl<>(dtoList,pageable,page.getTotalElements());
     }
 
-
-    public UserDetailsDTO updateProfile(String email, UpdateProfileReqDTO request) {
+    // Fix: In updateProfile, use correct method references for profileImg; update argument to email for find by email; fix setProfile call.
+    public UserDetailsDTO updateProfile(String email, UpdateProfileReqDTO request, MultipartFile profileImg) {
         Users user = findUserByEmailOrThrow(email);
-        UUID userId = user.getId(); // Get user ID before updating
-        String key = "developer:"+userId;
-        redisService.delete(key);
-        System.out.println("db hit for update dev profile");
+
+        //clear cache
+        String key = "profile:"+email;
+        UserDetailsDTO cacheDto = redisService.get(key, UserDetailsDTO.class);
+        if(cacheDto!=null){
+            redisService.delete(key);
+        }
+
+        //upload img to AWS s3
+        if(profileImg!=null && !profileImg.isEmpty()){
+            String imgUrl = s3Service.upload(profileImg, "profileImg");
+            user.setProfileImgUrl(imgUrl);
+        }
+
         // Update user details only if non-null
         if (request.getUsername() != null) user.setUsername(request.getUsername());
         if (request.getBio() != null) user.setBio(request.getBio());
@@ -93,23 +112,31 @@ public class DeveloperService {
         if (request.getRole() != null) user.setRole(request.getRole());
         if (request.getExperience() != null) user.setExperience(request.getExperience());
         if (request.getCompany() != null) user.setCompany(request.getCompany());
-        if (request.getProfileImg() != null) user.setProfileImg(request.getProfileImg());
-
+        
+        //save to db
         Users updatedUser = userRepo.save(user);
         UserDetailsDTO userDetails = mapToUserDetailsDto(updatedUser);
-        redisService.save(key,userDetails,Duration.ofHours(1));
+        
+        //cache the data
+        redisService.save(key, userDetails, Duration.ofHours(2));
+
         return mapToUserDetailsDto(updatedUser);
     }
 
+
     public UserDetailsDTO getProfile(String email) {
+        //get the data if present in cache
         String key = "profile:"+email;
         UserDetailsDTO cachedProfile = redisService.get(key,UserDetailsDTO.class);
         if(cachedProfile!=null){
             return cachedProfile;
         }
-        System.out.println("db hit for get dev profile");
+        //get the use details
         Users user = findUserByEmailOrThrow(email);
-        return mapToUserDetailsDto(user);
+        UserDetailsDTO userDetailsDTO= mapToUserDetailsDto(user);
+        //cache the data
+        redisService.save(key, userDetailsDTO, Duration.ofHours(2));
+        return userDetailsDTO;
     }
 
 
@@ -130,10 +157,6 @@ public class DeveloperService {
     }
 
     private UserDetailsDTO mapToUserDetailsDto(Users user){
-        String profileImgBase64 =null;
-        if(user.getProfileImg()!=null){
-            profileImgBase64= Base64.getEncoder().encodeToString(user.getProfileImg());
-        }
         return new UserDetailsDTO(
                 user.getId(),
                 user.getEmail(),
@@ -144,7 +167,7 @@ public class DeveloperService {
                 user.getRole(),
                 user.getExperience(),
                 user.getCompany(),
-                profileImgBase64
+                user.getProfileImgUrl()       
         );
     }
 }

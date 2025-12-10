@@ -21,5 +21,4 @@ public class UpdateProfileReqDTO {
     private String role;
     private String experience;
     private String company;
-    private byte[] profileImg;
 }

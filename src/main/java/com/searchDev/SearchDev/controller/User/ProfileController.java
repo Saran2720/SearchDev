@@ -9,9 +9,11 @@ import com.searchDev.SearchDev.Service.UserService.DeveloperService;
 import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/profile")
@@ -20,42 +22,26 @@ public class ProfileController {
     @Autowired
     private DeveloperService developerService;
 
-    private RedisService redisService;
-
-    @Autowired
-    public ProfileController(RedisService redisService){
-        this.redisService = redisService;
-    }
 
     //get profile
     @GetMapping()
     public ResponseEntity<UserDetailsDTO> getProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ){
-        String key = "profile:" + userPrincipal.getUsername();
-        UserDetailsDTO cachedProfile = redisService.get(key, UserDetailsDTO.class);
-        if(cachedProfile != null){
-            return ResponseEntity.ok(cachedProfile);
-        }
-        System.out.println("DB hit → getProfile");
+
         UserDetailsDTO profile = developerService.getProfile(userPrincipal.getUsername());
-        redisService.save(key, profile, Duration.ofHours(2));
         return ResponseEntity.ok(profile);
     }
 
 
     //update profile
-    @PutMapping()
+    @PutMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<UserDetailsDTO> updateProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestBody UpdateProfileReqDTO request
+            @RequestPart("data") UpdateProfileReqDTO request,
+            @RequestPart(value = "profileImg", required = false) MultipartFile profileImg
     ){
-
-        String key ="profile:" + userPrincipal.getUsername();
-        redisService.delete(key);
-        System.out.println("DB hit → updateProfile");
-        UserDetailsDTO updatedProfile = developerService.updateProfile(userPrincipal.getUsername(),request);
-        redisService.save(key, updatedProfile, Duration.ofHours(2));
+        UserDetailsDTO updatedProfile = developerService.updateProfile(userPrincipal.getUsername(),request,profileImg);
         return ResponseEntity.ok(updatedProfile);
     }
 }

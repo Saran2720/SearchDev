@@ -46,9 +46,8 @@ public class Users {
     @Column(name = "bio" , length = 1000)
     private String bio;
 
-    @Column(name = "profile_img", columnDefinition = "BYTEA")
-    @Basic(fetch = FetchType.LAZY)
-    private byte[] profileImg;
+    @Column(name = "profileImgUrl")
+    private String profileImgUrl;
 
     @Type(JsonBinaryType.class)
     @Column(name ="skills",columnDefinition = "jsonb", nullable = true)

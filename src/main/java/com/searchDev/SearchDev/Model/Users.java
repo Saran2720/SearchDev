@@ -49,6 +49,9 @@ public class Users {
     @Column(name = "profileImgUrl")
     private String profileImgUrl;
 
+    @Column(name ="fileKey")
+    private String fileKey;
+
     @Type(JsonBinaryType.class)
     @Column(name ="skills",columnDefinition = "jsonb", nullable = true)
     private List<String> skills;

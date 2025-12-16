@@ -1,6 +1,5 @@
 package com.searchDev.SearchDev.DTO;
 
-
 import lombok.*;
 
 import java.util.List;
@@ -13,30 +12,16 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserDetailsDTO {
-    private UUID id;
-    private String email;
-    private String username;
-    private String bio;
-    private List<String> skills;
-    private Map<String,Object> links;
-    private String role;
-    private String experience;
-    private String company;
-    private String profileImg;
-
-
-    @Override
-    public String toString() {
-        return "UserDetailsDTO{" +
-                "id=" + id +
-                ", email='" + email + '\'' +
-                ", username='" + username + '\'' +
-                ", bio='" + bio + '\'' +
-                ", skills=" + skills +
-                ", links=" + links +
-                ", role='" + role + '\'' +
-                ", experience='" + experience + '\'' +
-                ", company='" + company + '\'' +
-                '}';
-    }
+    private UUID id;                    
+    private String email;                
+    private String username;             
+    private String bio;                  
+    private String profileImgUrl;        
+    private String fileKey;             
+    private List<String> skills;         
+    private Map<String, Object> links;  
+    private String role;               
+    private String experience;          
+    private String company;           
 }
+

@@ -27,6 +27,12 @@ public class Projects {
     @Column(name = "project_id",updatable = false,nullable = false)
     private UUID projectId;
 
+    @Column(name = "fileKey")
+    private String fileKey;
+
+    @Column(name = "projectImgUrl")
+    private String projectImgUrl;
+
     @Column(name = "project_name", nullable = false)
     private String projectName;
 

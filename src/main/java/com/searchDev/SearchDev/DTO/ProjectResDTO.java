@@ -13,6 +13,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ProjectResDTO {
     private UUID projectId;
+    private String fileKey;
+    private String projectImgUrl;
     private UUID ownerID;
     private String name;
     private String description;

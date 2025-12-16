@@ -21,34 +21,34 @@ public class UserController {
     private DeveloperService developerService;
 
     @GetMapping()
-    public ResponseEntity<PageResponseDTO<UserDetailsDTO>> getAllDevelopers(
+    public ResponseEntity<PageResponseDTO<UserDetailsDTO>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "2") int size
     ){
         if(page<0 || size<=0 ) {
             throw new IllegalArgumentException("Page index must be >= 0 and size must be > 0");
         }
-        Page<UserDetailsDTO> developers= developerService.getAllDevelopers(PageRequest.of(page,size));
+        Page<UserDetailsDTO> users= developerService.getAllUsers(PageRequest.of(page,size));
         PageResponseDTO<UserDetailsDTO>  response= new PageResponseDTO<>(
-                developers.getContent(),
-                developers.getSize(),
-                developers.getNumber(),
-                developers.getTotalElements(),
-                developers.getTotalPages(),
-                developers.isLast()
+                users.getContent(),
+                users.getSize(),
+                users.getNumber(),
+                users.getTotalElements(),
+                users.getTotalPages(),
+                users.isLast()
         );
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{userID}")
-    public ResponseEntity<UserDetailsDTO> developersById(@PathVariable UUID userID) throws ResourceNotFoundException {
-        UserDetailsDTO developer =developerService.getDeveloperById(userID);
-        // System.out.println(developer);
-        return ResponseEntity.ok(developer);
+    public ResponseEntity<UserDetailsDTO> userById(@PathVariable UUID userID) throws ResourceNotFoundException {
+        UserDetailsDTO user =developerService.getDeveloperById(userID);
+        // System.out.println(user);
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/username/{username}")
-    public ResponseEntity<PageResponseDTO<UserDetailsDTO>> developersByUsername(
+    public ResponseEntity<PageResponseDTO<UserDetailsDTO>> userByUsername(
             @PathVariable String username,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "2") int size
@@ -57,14 +57,14 @@ public class UserController {
             throw new IllegalArgumentException("Page index must be >= 0 and size must be > 0");
         }
 
-       Page<UserDetailsDTO> developers = developerService.getDevelopersByUsername(username,PageRequest.of(page,size));
+       Page<UserDetailsDTO> users = developerService.getUserByUsername(username,PageRequest.of(page,size));
        PageResponseDTO<UserDetailsDTO> response = new PageResponseDTO<>(
-               developers.getContent(),
-               developers.getSize(),
-               developers.getNumber(),
-               developers.getTotalElements(),
-               developers.getTotalPages(),
-               developers.isLast()
+               users.getContent(),
+               users.getSize(),
+               users.getNumber(),
+               users.getTotalElements(),
+               users.getTotalPages(),
+               users.isLast()
        );
        return ResponseEntity.ok(response);
     }

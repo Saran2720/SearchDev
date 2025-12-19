@@ -8,4 +8,3 @@ public class SearchDevApplication {
 		SpringApplication.run(SearchDevApplication.class, args);
 	}
 }
-

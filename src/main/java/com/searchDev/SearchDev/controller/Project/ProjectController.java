@@ -1,39 +1,47 @@
 package com.searchDev.SearchDev.controller.Project;
 
-
 import com.searchDev.SearchDev.DTO.ApiResDTO;
+import com.searchDev.SearchDev.DTO.ConfirmImageReqDTO;
 import com.searchDev.SearchDev.DTO.ProjectReqDTO;
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.UserPrincipal;
+import com.searchDev.SearchDev.Service.FileUploadService.FileUploadService;
 import com.searchDev.SearchDev.Service.Project.ProjectService;
 import com.searchDev.SearchDev.Service.UserService.DeveloperService;
+
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 import com.searchDev.SearchDev.ExceptionHandler.AccessDeniedException;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/profile")
 public class ProjectController {
-    @Autowired
     private ProjectService projectService;
+    private FileUploadService fileUploadService;
+    private DeveloperService developerService;
 
     @Autowired
-    private DeveloperService developerService;
+    ProjectController(ProjectService projectService, DeveloperService developerService,
+            FileUploadService fileUploadService) {
+        this.projectService = projectService;
+        this.developerService = developerService;
+        this.fileUploadService = fileUploadService;
+    }
 
     @PostMapping("/projects")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> createProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestBody ProjectReqDTO request
-    ) {
+            @RequestBody ProjectReqDTO request) {
         String email = userPrincipal.getUsername();
         ProjectResDTO project = projectService.createProject(email, request);
 
@@ -48,13 +56,13 @@ public class ProjectController {
         return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
     }
 
-   // getting the profile projects
+    // getting the profile projects
     @GetMapping("/projects")
     public ResponseEntity<ApiResDTO<List<ProjectResDTO>>> getProfileProject(
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
         String email = userPrincipal.getUsername();
-        List<ProjectResDTO> projects = projectService.getProfileProject(email);
+        List<ProjectResDTO> projects = projectService.geProfileProject(email);
 
         ApiResDTO<List<ProjectResDTO>> response = ApiResDTO.<List<ProjectResDTO>>builder()
                 .success(true)
@@ -68,13 +76,28 @@ public class ProjectController {
     }
 
 
-   // updating the profile project 
+    //get a single profile project
+    // @GetMapping("/projects/{id}")
+    // public ResponseEntity<ApiResDTO<?>> getProfileProjectById(
+    //         @PathVariable UUID id) {
+    //     ProjectResDTO project = projectService.getProjectById(id);
+    //     ApiResDTO<ProjectResDTO> apiResponse = ApiResDTO.<ProjectResDTO>builder()
+    //             .success(true)
+    //             .status(HttpStatus.CREATED.value())
+    //             .message("Project created successfully")
+    //             .data(project)
+    //             .timestamp(LocalDateTime.now())
+    //             .build();
+    //     return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
+    // }
+
+    // updating the profile project content
     @PutMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> updateProjectById(
             @PathVariable UUID id,
             @RequestBody ProjectReqDTO request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) throws ResourceNotFoundException, AccessDeniedException {
+            @AuthenticationPrincipal UserPrincipal userPrincipal)
+            throws ResourceNotFoundException, AccessDeniedException {
         String email = userPrincipal.getUsername();
         ProjectResDTO updated = projectService.updateProjectById(id, request, email);
 
@@ -89,12 +112,31 @@ public class ProjectController {
         return ResponseEntity.ok(apiResponse);
     }
 
+    // update project image
+    @PutMapping("/projects/{id}/image/presign")
+    public ResponseEntity<Map<String, String>> getPresignedUrl(
+            @RequestParam String extension,
+            @PathVariable UUID id) {
+        Map<String, String> urlFileKeyMap = fileUploadService.generateProjectPresignedUrl(id, extension);
+        return ResponseEntity.ok(urlFileKeyMap);
+    }
+
+    // project confirm upload after image hosted on s3
+    @PutMapping("/projects/{id}/image/confirm")
+    public ResponseEntity<Void> confirmUpdate(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestBody @Valid ConfirmImageReqDTO request,
+            @PathVariable UUID id) {
+        projectService.confirmUpdate(request.getFileKey(), id, userPrincipal.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
     // Delete the profile projects
     @DeleteMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<Void>> deleteProject(
             @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) throws AccessDeniedException, ResourceNotFoundException {
+            @AuthenticationPrincipal UserPrincipal userPrincipal)
+            throws AccessDeniedException, ResourceNotFoundException {
         String email = userPrincipal.getUsername();
         projectService.deleteProjectById(id, email);
 

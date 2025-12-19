@@ -7,6 +7,9 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+
+
 import java.util.Set;
 @Service
 public class RedisService {
@@ -26,12 +29,12 @@ public class RedisService {
         }
     }
 
-    public <T> T get(String key, Class<T> clazz) {
+    public <T> T get(String key, TypeReference<T> typeRef) {
         try {
             String json = redisTemplate.opsForValue().get(key);
             if (json == null)
                 return null;
-            return mapper.readValue(json, clazz);
+            return mapper.readValue(json, typeRef);
         } catch (Exception e) {
             throw new RuntimeException("Redis Deserialization Error", e);
         }

@@ -33,7 +33,8 @@ public class DeveloperService {
         this.redisService = redisService;
         this.s3Service = s3Service;
     }
-     //--------------------------------------page of users-------------------------------------
+    // --------------------------------------page of
+    // users-------------------------------------
 
     // get all the users
     public Page<UserDetailsDTO> getAllUsers(Pageable pageable) {
@@ -74,7 +75,7 @@ public class DeveloperService {
 
     // get the users by username
     public Page<UserDetailsDTO> getUserByUsername(String username, Pageable pageable) {
-        
+
         String key = "seacrh:username:" + username.toLowerCase() + "page:" + pageable.getPageNumber() + "size:"
                 + pageable.getPageSize();
         PageUsersCache cache = redisService.get(key, PageUsersCache.class);
@@ -112,10 +113,15 @@ public class DeveloperService {
         return new PageImpl<>(dtoList, pageable, totalElements);
     }
 
-    // -------------------------------single profile get and put methods by email or ID-------------------------------
+    // -------------------------------single profile get and put methods by email or
+    // ID-------------------------------
 
     public UserDetailsDTO updateProfile(String email, UpdateProfileReqDTO request) {
         Users user = findUserByEmailOrThrow(email);
+
+        // clear old cache and save newone
+        String key = "user:" + user.getId();
+        redisService.delete(key);
 
         // Update user details only if non-null
         if (request.getUsername() != null)
@@ -136,14 +142,24 @@ public class DeveloperService {
         // save to db
         Users updatedUser = userRepo.save(user);
 
-        // clear old cache and save newone
-        String key = "user:" + updatedUser.getId();
-        redisService.delete(key);
-        // Map and cache
+        // Map
         UserDetailsDTO userDetails = mapToUserDetailsDto(updatedUser);
-        redisService.save(key, userDetails, Duration.ofHours(2));
-
         return userDetails;
+    }
+
+    public void confirmUpdate(String email, String fileKey){
+        Users user = findUserByEmailOrThrow(email);
+
+        //delete the cache data
+        String key = "user:" + user.getId();
+        redisService.delete(key);
+        
+        String oldKey = user.getFileKey();
+        if (oldKey != null) {
+            s3Service.deleteFile(oldKey);
+        }
+        user.setFileKey(fileKey);
+        userRepo.save(user);
     }
 
     // get the user by email

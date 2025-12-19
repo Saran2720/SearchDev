@@ -1,10 +1,13 @@
 package com.searchDev.SearchDev.controller.User;
 
+import com.searchDev.SearchDev.DTO.ConfirmImageReqDTO;
 import com.searchDev.SearchDev.DTO.UpdateProfileReqDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
 import com.searchDev.SearchDev.Model.UserPrincipal;
 import com.searchDev.SearchDev.Service.FileUploadService.FileUploadService;
 import com.searchDev.SearchDev.Service.UserService.DeveloperService;
+
+import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -54,8 +57,20 @@ public class ProfileController {
             @RequestParam String extension
         ) {
 
-        Map<String, String> presignedUrl = fileUploadService.generateProfilePresignedUrl(userPrincipal.getUsername(),
+        Map<String, String> urlFileKeyMap = fileUploadService.generateProfilePresignedUrl(userPrincipal.getUsername(),
                 extension);
-        return ResponseEntity.ok(presignedUrl);
+        return ResponseEntity.ok(urlFileKeyMap);
+    }
+
+    @PutMapping("/image/confirm")
+    public ResponseEntity<Void> confirmUpdate(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestBody @Valid ConfirmImageReqDTO request
+    ) {
+        developerService.confirmUpdate(
+            userPrincipal.getUsername(),
+            request.getFileKey()
+        );
+        return ResponseEntity.noContent().build(); // 204
     }
 }

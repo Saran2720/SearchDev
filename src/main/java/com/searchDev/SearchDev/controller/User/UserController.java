@@ -9,8 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import com.searchDev.SearchDev.Model.UserPrincipal;
 import java.util.UUID;
 
 @RestController
@@ -22,13 +24,14 @@ public class UserController {
 
     @GetMapping()
     public ResponseEntity<PageResponseDTO<UserDetailsDTO>> getAllUsers(
+        @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "2") int size
     ){
         if(page<0 || size<=0 ) {
             throw new IllegalArgumentException("Page index must be >= 0 and size must be > 0");
         }
-        Page<UserDetailsDTO> users= developerService.getAllUsers(PageRequest.of(page,size));
+        Page<UserDetailsDTO> users= developerService.getAllUsers(PageRequest.of(page,size), userPrincipal.getUsername());
         PageResponseDTO<UserDetailsDTO>  response= new PageResponseDTO<>(
                 users.getContent(),
                 users.getSize(),

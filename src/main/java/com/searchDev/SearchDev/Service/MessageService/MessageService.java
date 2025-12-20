@@ -1,5 +1,6 @@
 package com.searchDev.SearchDev.Service.MessageService;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.searchDev.SearchDev.DTO.MessageResDTO;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.Message;
@@ -18,35 +19,38 @@ import java.util.UUID;
 @Service
 public class MessageService {
 
-
     @Autowired
     private MessageRepo messageRepo;
 
     private RedisService redisService;
     private UserRepo userRepo;
-    
+
     @Autowired
     MessageService(RedisService redisService, UserRepo userRepo) {
         this.redisService = redisService;
         this.userRepo = userRepo;
     }
-    // Helper method to get email by receiver ID, safely handling case where receiver does not exist
+
+    // Helper method to get email by receiver ID, safely handling case where
+    // receiver does not exist
     private String getReceiverEmailById(UUID receiverId) throws ResourceNotFoundException {
         Users receiver = userRepo.findById(receiverId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receiver not found with ID: " + receiverId));
         return receiver.getEmail();
     }
-    //send message to the reciver 
+
+    // send message to the reciver
     public Message sendMessage(String senderEmail, UUID receiverId, String content) throws ResourceNotFoundException {
         Users sender = userRepo.findByEmail(senderEmail);
         if (sender == null) {
             throw new ResourceNotFoundException("Sender not found with email: " + senderEmail);
         }
-        //get the eamil for the receiver to delte the chached data if present
+        // get the eamil for the receiver to delte the chached data if present
         String email = getReceiverEmailById(receiverId);
         String key = "message:inbox" + email;
-        List<MessageResDTO> cachedMsg = redisService.get(key,List.class);
-        if(cachedMsg!=null){
+        List<MessageResDTO> cachedMsg = redisService.get(key, new TypeReference<List<MessageResDTO>>() {
+        });
+        if (cachedMsg != null) {
             redisService.delete(key);
         }
 
@@ -61,12 +65,12 @@ public class MessageService {
 
         return messageRepo.save(message);
     }
-    
 
-    //get the user inbox message and cache the data
+    // get the user inbox message and cache the data
     public List<MessageResDTO> getInbox(String email) throws ResourceNotFoundException {
         String key = "message:inbox" + email;
-        List<MessageResDTO> cached = redisService.get(key, List.class);
+        List<MessageResDTO> cached = redisService.get(key, new TypeReference<List<MessageResDTO>>() {
+        });
         if (cached != null) {
             return cached;
         }
@@ -81,7 +85,7 @@ public class MessageService {
         List<MessageResDTO> dto = messages.stream()
                 .map(MessageResDTO::fromEntity)
                 .toList();
-        redisService.save(key,dto,Duration.ofHours(1));
+        redisService.save(key, dto, Duration.ofHours(1));
         return dto;
     }
 }

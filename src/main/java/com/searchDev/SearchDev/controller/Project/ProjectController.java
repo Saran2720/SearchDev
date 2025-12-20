@@ -8,8 +8,6 @@ import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.UserPrincipal;
 import com.searchDev.SearchDev.Service.FileUploadService.FileUploadService;
 import com.searchDev.SearchDev.Service.Project.ProjectService;
-import com.searchDev.SearchDev.Service.UserService.DeveloperService;
-
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,13 +26,11 @@ import java.util.Map;
 public class ProjectController {
     private ProjectService projectService;
     private FileUploadService fileUploadService;
-    private DeveloperService developerService;
 
     @Autowired
-    ProjectController(ProjectService projectService, DeveloperService developerService,
+    ProjectController(ProjectService projectService,
             FileUploadService fileUploadService) {
         this.projectService = projectService;
-        this.developerService = developerService;
         this.fileUploadService = fileUploadService;
     }
 
@@ -62,7 +58,7 @@ public class ProjectController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         String email = userPrincipal.getUsername();
-        List<ProjectResDTO> projects = projectService.geProfileProject(email);
+        List<ProjectResDTO> projects = projectService.getProfileProject(email);
 
         ApiResDTO<List<ProjectResDTO>> response = ApiResDTO.<List<ProjectResDTO>>builder()
                 .success(true)
@@ -75,23 +71,6 @@ public class ProjectController {
         return ResponseEntity.ok(response);
     }
 
-
-    //get a single profile project
-    // @GetMapping("/projects/{id}")
-    // public ResponseEntity<ApiResDTO<?>> getProfileProjectById(
-    //         @PathVariable UUID id) {
-    //     ProjectResDTO project = projectService.getProjectById(id);
-    //     ApiResDTO<ProjectResDTO> apiResponse = ApiResDTO.<ProjectResDTO>builder()
-    //             .success(true)
-    //             .status(HttpStatus.CREATED.value())
-    //             .message("Project created successfully")
-    //             .data(project)
-    //             .timestamp(LocalDateTime.now())
-    //             .build();
-    //     return ResponseEntity.status(HttpStatus.CREATED).body(apiResponse);
-    // }
-
-    // updating the profile project content
     @PutMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> updateProjectById(
             @PathVariable UUID id,
@@ -124,7 +103,7 @@ public class ProjectController {
     // project confirm upload after image hosted on s3
     @PutMapping("/projects/{id}/image/confirm")
     public ResponseEntity<Void> confirmUpdate(
-        @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody @Valid ConfirmImageReqDTO request,
             @PathVariable UUID id) {
         projectService.confirmUpdate(request.getFileKey(), id, userPrincipal.getUsername());

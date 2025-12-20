@@ -1,5 +1,6 @@
 package com.searchDev.SearchDev.Service.UserService;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.searchDev.SearchDev.DTO.UpdateProfileReqDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
 import com.searchDev.SearchDev.DTO.cacheWrapper.PageUsersCache;
@@ -33,20 +34,26 @@ public class DeveloperService {
         this.redisService = redisService;
         this.s3Service = s3Service;
     }
+    
+    
     // --------------------------------------page of
     // users-------------------------------------
 
     // get all the users
-    public Page<UserDetailsDTO> getAllUsers(Pageable pageable) {
-        String key = "users:all" + pageable.getPageNumber() + ":" + pageable.getPageSize();
+    public Page<UserDetailsDTO> getAllUsers(Pageable pageable, String email) {
+        //get the curr user
+        UserDetailsDTO currUser = getProfile(email);
+        String key = "users:all:excludes:" +currUser.getId() + pageable.getPageNumber() + ":" + pageable.getPageSize();
         // get the data if it is cached
-        PageUsersCache cache = redisService.get(key, PageUsersCache.class);
+        PageUsersCache cache = redisService.get(key, new TypeReference<PageUsersCache>() {
+        });
 
         List<UserDetailsDTO> dtoList;
         long totalElements;
 
         if (cache == null) {
-            Page<Users> page = userRepo.findAll(pageable);
+            //get all user excluding the currUser
+            Page<Users> page = userRepo.findByIdNot(currUser.getId(),pageable);
             dtoList = page.map(this::mapToUserDetailsDto).getContent();
             totalElements = page.getTotalElements();
 
@@ -60,8 +67,8 @@ public class DeveloperService {
             totalElements = cache.getTotalElements();
         }
 
-        // get the profileIMgUrl for all users
-        if (dtoList.size() > 0) {
+        // get the profileIMgUrl for all users excluding the own user
+        if (!dtoList.isEmpty()) {
             for (UserDetailsDTO user : dtoList) {
                 String fileKey = user.getFileKey();
                 if (fileKey != null) {
@@ -78,7 +85,8 @@ public class DeveloperService {
 
         String key = "seacrh:username:" + username.toLowerCase() + "page:" + pageable.getPageNumber() + "size:"
                 + pageable.getPageSize();
-        PageUsersCache cache = redisService.get(key, PageUsersCache.class);
+        PageUsersCache cache = redisService.get(key, new TypeReference<PageUsersCache>() {
+        });
 
         List<UserDetailsDTO> dtoList;
         long totalElements;
@@ -147,13 +155,13 @@ public class DeveloperService {
         return userDetails;
     }
 
-    public void confirmUpdate(String email, String fileKey){
+    public void confirmUpdate(String email, String fileKey) {
         Users user = findUserByEmailOrThrow(email);
 
-        //delete the cache data
+        // delete the cache data
         String key = "user:" + user.getId();
         redisService.delete(key);
-        
+
         String oldKey = user.getFileKey();
         if (oldKey != null) {
             s3Service.deleteFile(oldKey);
@@ -167,7 +175,8 @@ public class DeveloperService {
         Users ownUser = findUserByEmailOrThrow(email);
         // get the data if present in cache and generate the presigned get url
         String key = "user:" + ownUser.getId();
-        UserDetailsDTO dto = redisService.get(key, UserDetailsDTO.class);
+        UserDetailsDTO dto = redisService.get(key, new TypeReference<UserDetailsDTO>() {
+        });
 
         if (dto == null) {
             Users user = findUserByEmailOrThrow(email);
@@ -185,7 +194,8 @@ public class DeveloperService {
     // get the user by id
     public UserDetailsDTO getDeveloperById(UUID userID) {
         String key = "user:" + userID;
-        UserDetailsDTO dto = redisService.get(key, UserDetailsDTO.class);
+        UserDetailsDTO dto = redisService.get(key, new TypeReference<UserDetailsDTO>() {
+        });
         if (dto == null) {
             Users user = findUserByIdOrThrow(userID);
             dto = mapToUserDetailsDto(user);

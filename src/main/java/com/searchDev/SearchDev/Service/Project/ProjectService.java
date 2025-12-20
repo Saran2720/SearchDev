@@ -4,6 +4,7 @@ import org.springframework.data.domain.PageImpl;
 import com.searchDev.SearchDev.DTO.ProjectReqDTO;
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
+import com.searchDev.SearchDev.DTO.cacheWrapper.PageProjectsCache;
 import com.searchDev.SearchDev.ExceptionHandler.AccessDeniedException;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.Projects;
@@ -13,6 +14,9 @@ import com.searchDev.SearchDev.Repository.UserRepo;
 import com.searchDev.SearchDev.Service.RedisService.RedisService;
 import com.searchDev.SearchDev.Service.S3service.S3Service;
 import com.searchDev.SearchDev.Service.UserService.DeveloperService;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -69,7 +73,8 @@ public class ProjectService {
     // getting a project by projectId
     public ProjectResDTO getProjectById(UUID projectId) throws ResourceNotFoundException {
         String key = "project:" + projectId;
-        ProjectResDTO dto = redisService.get(key, ProjectResDTO.class);
+        ProjectResDTO dto = redisService.get(key, new TypeReference<ProjectResDTO>() {
+        });
         if (dto == null) {
             Projects project = projectRepo.findById(projectId)
                     .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
@@ -100,7 +105,6 @@ public class ProjectService {
         redisService.delete(key);
         String profileProjectsKey = "project:profile:" + email;
         redisService.delete(profileProjectsKey);
-
 
         project.setProjectName(request.getProjectName());
         project.setDescription(request.getDescription());
@@ -142,6 +146,8 @@ public class ProjectService {
         // delte the data if it is already in the cache
         String key = "project:" + projectId;
         redisService.delete(key);
+        String profileProjectsKey = "project:profile:" + email;
+        redisService.delete(profileProjectsKey);
 
         System.out.println("db hit for delted");
         Projects project = projectRepo.findById(projectId)
@@ -161,103 +167,27 @@ public class ProjectService {
         projectRepo.delete(project);
     }
 
-
-    // Fix: Use correct type in Redis call and add type safety
-
+    // getting the user profile projects
     public List<ProjectResDTO> getProfileProject(String email) {
-        // getting the project from the cache
-        String key = "project:profile:" + email;
-        List<ProjectResDTO> cached = redisService.get(key,List.class);
-        if (cached != null) {
-            System.out.println("cache hit for profileProjectList");
-            for (ProjectResDTO dto : cached) {
-                if (dto.getFileKey() != null) {
-                    String projectImgUrl = presignedGetUrl(dto.getFileKey());
-                    dto.setProjectImgUrl(projectImgUrl);
-                }
-            }
-            return cached;
-        }
-
-        System.out.println("db hit for profileProjectList");
+        // check if the user is a valid user or not
         UserDetailsDTO user = developerService.getProfile(email);
         if (user == null) {
             throw new IllegalArgumentException("User not found with this email: " + email);
         }
-        List<Projects> projects = projectRepo.findByOwnerIdOrderByCreatedAtDesc(user.getId());
-        // map and save to cache
-        List<ProjectResDTO> dtoProjects = projects.stream()
-                .map(this::mapToProjectResDTO)
-                .toList();
-        redisService.save(key, dtoProjects, Duration.ofHours(2));
+        // get from cache
+        String key = "project:profile:" + email;
+        List<ProjectResDTO> dtoList = redisService.get(key, new TypeReference<List<ProjectResDTO>>() {
+        });
 
-        // assign projectGETUrl for each projects
-        for (ProjectResDTO dto : dtoProjects) {
-            if (dto.getFileKey() != null) {
-                String projectImgUrl = presignedGetUrl(dto.getFileKey());
-                dto.setProjectImgUrl(projectImgUrl);
-            }
+        if (dtoList == null) {
+            List<Projects> projects = projectRepo.findByOwnerIdOrderByCreatedAtDesc(user.getId());
+            // map
+            dtoList = projects.stream()
+                    .map(this::mapToProjectResDTO)
+                    .toList();
+            /// save to cache
+            redisService.save(key, dtoList, Duration.ofHours(2));
         }
-        return dtoProjects;
-    }
-    // getting the user profile projects
-    // public List<ProjectResDTO> getProfileProject(String email) {
-
-    //     // getting the project from the cache
-    //     String key = "project:profile:" + email;
-    //     List<ProjectResDTO> cached = redisService.get(key, List.class);
-    //     if (cached != null) {
-    //         System.out.println("cache hit for profileProjectList");
-    //         for (ProjectResDTO dto : cached) {
-    //             if (dto.getFileKey() != null) {
-    //                 String projectImgUrl = presignedGetUrl(dto.getFileKey());
-    //                 dto.setProjectImgUrl(projectImgUrl);
-    //             }
-    //         }
-    //         return cached;
-    //     }
-
-    //     System.out.println("db hit for profileProjectList");
-    //     UserDetailsDTO user = developerService.getProfile(email);
-    //     if (user == null) {
-    //         throw new IllegalArgumentException("User not found with this email: " + email);
-    //     }
-    //     List<Projects> projects = projectRepo.findByOwnerIdOrderByCreatedAtDesc(user.getId());
-    //     // map and save to cache
-    //     List<ProjectResDTO> dtoProjects = projects.stream()
-    //             .map(this::mapToProjectResDTO)
-    //             .toList();
-    //     redisService.save(key, dtoProjects, Duration.ofHours(2));
-
-    //     // assign projectGETUrl for each projects
-    //     for (ProjectResDTO dto : dtoProjects) {
-    //         if (dto.getFileKey() != null) {
-    //             String projectImgUrl = presignedGetUrl(dto.getFileKey());
-    //             dto.setProjectImgUrl(projectImgUrl);
-    //         }
-    //     }
-    //     return dtoProjects;
-    // }
-
-    // getting all the projects
-    public Page<ProjectResDTO> getAllProjects(Pageable pageable) {
-        String key = "project:all" + pageable.getPageNumber() + ":" + pageable.getPageSize();
-
-        // Try to retrieve the list of ProjectResDTO from Redis (use array for type-safe
-        // cast)
-        List<ProjectResDTO> cachedList = redisService.get(key, List.class);
-        if (cachedList != null) {
-            System.out.println("cache hit");
-            int totalElements = cachedList.size();
-            return new PageImpl<>(cachedList, pageable, totalElements);
-        }
-
-        System.out.println("DB hit → getAllProjects");
-        Page<Projects> projectsPage = projectRepo.findAll(pageable);
-        List<ProjectResDTO> dtoList = projectsPage.map(this::mapToProjectResDTO).getContent();
-
-        // Store dtoList as value in redis using list for safe deserialization
-        redisService.save(key, dtoList, Duration.ofMinutes(30));
 
         for (ProjectResDTO dto : dtoList) {
             if (dto.getFileKey() != null) {
@@ -265,9 +195,48 @@ public class ProjectService {
                 dto.setProjectImgUrl(projectImgUrl);
             }
         }
+        return dtoList;
+    }
 
-        // Return a new PageImpl, using the actual paging info from the DB query
-        return new PageImpl<>(dtoList, pageable, projectsPage.getTotalElements());
+    // getting all the projects
+    public Page<ProjectResDTO> getAllProjects(Pageable pageable) {
+
+        // key for cache
+        String key = "project:all:" + pageable.getPageNumber() + ":" + pageable.getPageSize();
+
+        // page wrapper
+        PageProjectsCache cache = redisService.get(key, new TypeReference<PageProjectsCache>() {
+        });
+        List<ProjectResDTO> dtoList;
+        long totalElements;
+
+        // get from db
+        if (cache == null) {
+            Page<Projects> page = projectRepo.findAll(pageable);
+            totalElements = page.getTotalElements();
+
+            dtoList = page
+                    .map(this::mapToProjectResDTO)
+                    .getContent();
+
+            // save to cache
+            redisService.save(
+                    key, new PageProjectsCache(dtoList, totalElements), Duration.ofMinutes(20));
+
+        } else { // get from cache (page wrapper)
+            dtoList = cache.getProjects();
+            totalElements = cache.getTotalElements();
+        }
+
+        // get and set the image
+        if (!dtoList.isEmpty()) {
+            for (ProjectResDTO dto : dtoList) {
+                if (dto.getFileKey() != null) {
+                    dto.setProjectImgUrl(presignedGetUrl(dto.getFileKey()));
+                }
+            }
+        }
+        return new PageImpl<>(dtoList, pageable, totalElements);
     }
 
     // helper function to map the project to the project response dto

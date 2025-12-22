@@ -6,6 +6,7 @@ import com.searchDev.SearchDev.DTO.ProjectReqDTO;
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import com.searchDev.SearchDev.Model.UserPrincipal;
+import com.searchDev.SearchDev.Security.RateLimiter;
 import com.searchDev.SearchDev.Service.FileUploadService.FileUploadService;
 import com.searchDev.SearchDev.Service.Project.ProjectService;
 import jakarta.validation.Valid;
@@ -33,7 +34,7 @@ public class ProjectController {
         this.projectService = projectService;
         this.fileUploadService = fileUploadService;
     }
-
+   
     @PostMapping("/projects")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> createProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -53,6 +54,7 @@ public class ProjectController {
     }
 
     // getting the profile projects
+    @RateLimiter(request = 40, durationSeconds = 60)
     @GetMapping("/projects")
     public ResponseEntity<ApiResDTO<List<ProjectResDTO>>> getProfileProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -71,6 +73,7 @@ public class ProjectController {
         return ResponseEntity.ok(response);
     }
 
+    @RateLimiter(request = 10,durationSeconds = 60)
     @PutMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> updateProjectById(
             @PathVariable UUID id,
@@ -92,6 +95,7 @@ public class ProjectController {
     }
 
     // update project image
+    @RateLimiter(request = 3, durationSeconds = 60)
     @PutMapping("/projects/{id}/image/presign")
     public ResponseEntity<Map<String, String>> getPresignedUrl(
             @RequestParam String extension,

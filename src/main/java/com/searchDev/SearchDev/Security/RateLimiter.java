@@ -1,5 +1,9 @@
 package com.searchDev.SearchDev.Security;
+import java.lang.annotation.*;
 
-public interface RateLimiter {
-
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RateLimiter {
+    int request();
+    int durationSeconds();
 }

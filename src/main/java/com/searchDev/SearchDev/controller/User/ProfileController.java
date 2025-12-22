@@ -4,6 +4,7 @@ import com.searchDev.SearchDev.DTO.ConfirmImageReqDTO;
 import com.searchDev.SearchDev.DTO.UpdateProfileReqDTO;
 import com.searchDev.SearchDev.DTO.UserDetailsDTO;
 import com.searchDev.SearchDev.Model.UserPrincipal;
+import com.searchDev.SearchDev.Security.RateLimiter;
 import com.searchDev.SearchDev.Service.FileUploadService.FileUploadService;
 import com.searchDev.SearchDev.Service.UserService.DeveloperService;
 
@@ -32,6 +33,7 @@ public class ProfileController {
 
 
     // get profile
+    @RateLimiter(request = 5,durationSeconds = 60)
     @GetMapping()
     public ResponseEntity<UserDetailsDTO> getProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -41,7 +43,8 @@ public class ProfileController {
     }
 
     // update profile
-    @PutMapping()
+    @RateLimiter(request = 10,durationSeconds = 60)
+    @PutMapping("/update")
     public ResponseEntity<UserDetailsDTO> updateProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody UpdateProfileReqDTO request) {
@@ -51,6 +54,7 @@ public class ProfileController {
 
     //get the presignedUrl and upload thourgh it via frontend
     // for profile image
+    @RateLimiter(request = 3, durationSeconds = 60)
     @PutMapping("/image/presign")
     public ResponseEntity<Map<String, String>> getPresignedUrl(
             @AuthenticationPrincipal UserPrincipal userPrincipal,

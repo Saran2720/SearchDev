@@ -13,6 +13,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import com.searchDev.SearchDev.Model.UserPrincipal;
+import com.searchDev.SearchDev.Security.RateLimiter;
+
 import java.util.UUID;
 
 @RestController
@@ -22,6 +24,7 @@ public class UserController {
     @Autowired
     private DeveloperService developerService;
 
+    @RateLimiter(request = 15, durationSeconds = 60)
     @GetMapping()
     public ResponseEntity<PageResponseDTO<UserDetailsDTO>> getAllUsers(
         @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -43,6 +46,7 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    @RateLimiter(request = 10,durationSeconds = 60)
     @GetMapping("/{userID}")
     public ResponseEntity<UserDetailsDTO> userById(@PathVariable UUID userID) throws ResourceNotFoundException {
         UserDetailsDTO user =developerService.getDeveloperById(userID);
@@ -50,6 +54,8 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
+
+    @RateLimiter(request = 15,durationSeconds = 60)
     @GetMapping("/username/{username}")
     public ResponseEntity<PageResponseDTO<UserDetailsDTO>> userByUsername(
             @PathVariable String username,
@@ -59,6 +65,7 @@ public class UserController {
         if(page<0 || size<=0 ) {
             throw new IllegalArgumentException("Page index must be >= 0 and size must be > 0");
         }
+    
 
        Page<UserDetailsDTO> users = developerService.getUserByUsername(username,PageRequest.of(page,size));
        PageResponseDTO<UserDetailsDTO> response = new PageResponseDTO<>(

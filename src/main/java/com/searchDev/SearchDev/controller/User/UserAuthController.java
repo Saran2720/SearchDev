@@ -2,6 +2,7 @@ package com.searchDev.SearchDev.controller.User;
 
 import com.searchDev.SearchDev.DTO.*;
 import com.searchDev.SearchDev.Model.Users;
+import com.searchDev.SearchDev.Security.RateLimiter;
 import com.searchDev.SearchDev.Service.AuthService.JWTservice;
 import com.searchDev.SearchDev.Service.AuthService.MyUserDetailsService;
 import com.searchDev.SearchDev.Service.AuthService.UserAuthService;
@@ -51,6 +52,7 @@ public class UserAuthController {
     @Autowired
     JWTservice jwTservice;
 
+    @RateLimiter(request = 5, durationSeconds = 60)
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginReqDTO request) {
         try {
@@ -99,6 +101,7 @@ public class UserAuthController {
     }
 
     // refresh token
+    @RateLimiter(request = 5, durationSeconds = 60)
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@CookieValue(value = "refresh_Token", required = false) String refreshToken) {
         try {
@@ -116,6 +119,7 @@ public class UserAuthController {
     }
 
     // logout the user by using tokens from http cookie
+    @RateLimiter(request = 3, durationSeconds = 60)
     @PostMapping("/logout")
     public ResponseEntity<?> logout(
             @CookieValue(value = "refresh_Token", required = false) String refreshToken,
@@ -158,7 +162,7 @@ public class UserAuthController {
         }
     }
 
-    
+    @RateLimiter(request = 3, durationSeconds = 60)
     @PostMapping("/forget-password")
     public ResponseEntity<?> forgetPassword(@RequestBody ForgetPasswordReqDTO req) {
         String genericMsg = "If an account with that email exists, a password reset link has been sent.";
@@ -176,6 +180,7 @@ public class UserAuthController {
     }
 
     // validating the reset token when the user click the link in the email
+    @RateLimiter(request = 3, durationSeconds = 60)
     @GetMapping("/reset-password")
     public ResponseEntity<?> verifyResetLink(@RequestParam("token") String token) {
         try {
@@ -187,6 +192,7 @@ public class UserAuthController {
     }
 
     // after validating the reset token , the user can change the password
+    @RateLimiter(request = 3, durationSeconds = 60)
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestParam("token") String token,
             @RequestBody Map<String, String> request) {

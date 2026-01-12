@@ -35,6 +35,7 @@ public class ProjectController {
         this.fileUploadService = fileUploadService;
     }
    
+    @RateLimiter(request = 5, durationSeconds = 60)
     @PostMapping("/projects")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> createProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -54,7 +55,7 @@ public class ProjectController {
     }
 
     // getting the profile projects
-    @RateLimiter(request = 40, durationSeconds = 60)
+    @RateLimiter(request = 15, durationSeconds = 60)
     @GetMapping("/projects")
     public ResponseEntity<ApiResDTO<List<ProjectResDTO>>> getProfileProject(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -73,7 +74,7 @@ public class ProjectController {
         return ResponseEntity.ok(response);
     }
 
-    @RateLimiter(request = 10,durationSeconds = 60)
+    @RateLimiter(request = 3,durationSeconds = 60)
     @PutMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> updateProjectById(
             @PathVariable UUID id,

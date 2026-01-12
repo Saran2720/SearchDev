@@ -4,6 +4,7 @@ import com.searchDev.SearchDev.DTO.MessageReqDTO;
 import com.searchDev.SearchDev.DTO.MessageResDTO;
 import com.searchDev.SearchDev.Model.Message;
 import com.searchDev.SearchDev.Model.UserPrincipal;
+import com.searchDev.SearchDev.Security.RateLimiter;
 import com.searchDev.SearchDev.Service.MessageService.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ public class MessageController {
     @Autowired
     private MessageService messageService;
 
+    @RateLimiter(request = 25, durationSeconds = 60)
     @PostMapping("/send")
     public ResponseEntity<ApiResDTO<MessageResDTO>> send(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -41,6 +43,7 @@ public class MessageController {
         return ResponseEntity.ok(response);
     }
 
+    @RateLimiter(request = 40,durationSeconds = 60)
     @GetMapping("/inbox")
     public ResponseEntity<ApiResDTO<List<MessageResDTO>>> getInbox(
             @AuthenticationPrincipal UserPrincipal userPrincipal

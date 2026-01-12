@@ -4,6 +4,7 @@ package com.searchDev.SearchDev.controller.Project;
 import com.searchDev.SearchDev.DTO.ApiResDTO;
 import com.searchDev.SearchDev.DTO.ProjectResDTO;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
+import com.searchDev.SearchDev.Security.RateLimiter;
 import com.searchDev.SearchDev.Service.Project.ProjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ public class AllProjectController {
     private ProjectService projectService;
 
     //returning the list of projects in page
+    @RateLimiter(request = 15, durationSeconds = 60)
     @GetMapping()
     public ResponseEntity<ApiResDTO<Page<ProjectResDTO>>> getProjects(
             @RequestParam(defaultValue = "0") int page,
@@ -54,6 +56,7 @@ public class AllProjectController {
         }
     }
 
+    @RateLimiter(request = 5, durationSeconds = 60)
     @GetMapping("/{projectId}")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> getProjectById(@PathVariable UUID projectId) throws ResourceNotFoundException {
         try{

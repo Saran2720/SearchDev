@@ -33,7 +33,7 @@ public class ProfileController {
 
 
     // get profile
-    @RateLimiter(request = 5,durationSeconds = 60)
+    @RateLimiter(request = 30,durationSeconds = 60)
     @GetMapping()
     public ResponseEntity<UserDetailsDTO> getProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -49,6 +49,7 @@ public class ProfileController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody UpdateProfileReqDTO request) {
         UserDetailsDTO updatedProfile = developerService.updateProfile(userPrincipal.getUsername(), request);
+        
         return ResponseEntity.ok(updatedProfile);
     }
 
@@ -65,7 +66,8 @@ public class ProfileController {
                 extension);
         return ResponseEntity.ok(urlFileKeyMap);
     }
-
+    
+    @RateLimiter(request = 3, durationSeconds = 60)
     @PutMapping("/image/confirm")
     public ResponseEntity<Void> confirmUpdate(
             @AuthenticationPrincipal UserPrincipal userPrincipal,

@@ -33,8 +33,7 @@ public class Users {
     private UUID id;
 
 
-
-    @Column(nullable = false,unique = true)
+    @Column(name="email",nullable = false,unique = true)
     private String email;
 
     @Column(nullable = false,name = "username")

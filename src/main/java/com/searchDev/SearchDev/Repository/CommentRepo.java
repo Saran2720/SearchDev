@@ -13,20 +13,41 @@ import com.searchDev.SearchDev.Model.Comment;
 @Repository
 public interface CommentRepo extends JpaRepository<Comment, UUID> {
     @Query(value = """
-            SELECT c.*
-            FROM Comment c
-            JOIN( SELECT root_id, root_created_at
-            FROM Comment
-            WHERE project_id=:project_id
-            AND (:lastrootCreatedAt IS NULL OR
-                 root_created_at< : lastrootCreatedAt)
+        SELECT c.*
+        FROM comments c
+        JOIN (
+            SELECT DISTINCT
+                root_id,
+                root_created_at
+            FROM comments
+            WHERE project_id = :projectId
+              AND root_created_at < :cursor
             ORDER BY root_created_at DESC
             LIMIT :limit
-            ) r ON c.root_id = r.root_id
-            ORDER BY r.root_created_at DESC , c.created_at ASC
-            """, nativeQuery = true)
-
+        ) r ON c.root_id = r.root_id
+        ORDER BY r.root_created_at DESC, c.created_at ASC
+        """, nativeQuery = true)
     List<Comment> findCommentsByProjectId(@Param("projectId") UUID projectId,
-            @Param("lastrootCreatedAt") Instant lastrootCreatedAt, 
+            @Param("cursor") Instant cursor, 
             @Param("limit") int limit);
+
+    @Query(value = """
+        SELECT c.*
+        FROM comments c
+        JOIN (
+            SELECT DISTINCT
+                root_id,
+                root_created_at
+            FROM comments
+            WHERE project_id = :projectId
+            ORDER BY root_created_at DESC
+            LIMIT :limit
+        ) r ON c.root_id = r.root_id
+        ORDER BY r.root_created_at DESC, c.created_at ASC
+        """, nativeQuery = true)
+    List<Comment> findCommentsByProjectIdFirstPage(@Param("projectId") UUID projectId,
+            @Param("limit") int limit);
+
+
+    Comment findCommentByCommentId(UUID comment_id);
 }

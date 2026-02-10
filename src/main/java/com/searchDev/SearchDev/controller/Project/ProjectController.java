@@ -34,7 +34,7 @@ public class ProjectController {
         this.projectService = projectService;
         this.fileUploadService = fileUploadService;
     }
-   
+
     @RateLimiter(request = 5, durationSeconds = 60)
     @PostMapping("/projects")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> createProject(
@@ -74,7 +74,7 @@ public class ProjectController {
         return ResponseEntity.ok(response);
     }
 
-    @RateLimiter(request = 3,durationSeconds = 60)
+    @RateLimiter(request = 3, durationSeconds = 60)
     @PutMapping("/projects/{id}")
     public ResponseEntity<ApiResDTO<ProjectResDTO>> updateProjectById(
             @PathVariable UUID id,

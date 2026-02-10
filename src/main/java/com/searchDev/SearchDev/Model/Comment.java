@@ -2,6 +2,7 @@ package com.searchDev.SearchDev.Model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,15 +27,16 @@ import jakarta.persistence.GeneratedValue;
 public class Comment {
     @Id
     @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @GenericGenerator(name = "comment_id", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "comment_id", updatable = false, nullable = false)
     private UUID commentId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", nullable = false)
     private Projects project;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id", nullable = false)
     private Users user;
 
     @Column(name ="username", nullable = false)
@@ -43,10 +45,10 @@ public class Comment {
     @Column(name = "parent_id")
     private UUID parentId;
 
-    @Column(name="root_id")
+    @Column(name="root_id", nullable = false)
     private UUID rootId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2000)
     private String content;
 
     @Column(name = "created_at", updatable = false)
@@ -55,8 +57,12 @@ public class Comment {
     @Column(name="root_created_at", updatable = false)
     private LocalDateTime rootCreatedAt;
     
-    @PrePersist
+    @PrePersist 
     protected void onCreate(){
         this.createdAt = LocalDateTime.now();
+        if(this.parentId==null){
+            this.rootCreatedAt=this.createdAt;
+            this.rootId= this.commentId;
+        }
     }
 }

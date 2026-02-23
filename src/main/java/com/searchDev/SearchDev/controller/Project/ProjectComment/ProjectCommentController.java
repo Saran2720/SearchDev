@@ -15,7 +15,7 @@ import java.time.Instant;
 import java.util.List;
 
 import com.searchDev.SearchDev.DTO.CommentReqDTO;
-import com.searchDev.SearchDev.Model.Comment;
+import com.searchDev.SearchDev.DTO.CommentResDTO;
 import com.searchDev.SearchDev.Service.commentService.CommentService;
 
 @RestController
@@ -30,9 +30,9 @@ public class ProjectCommentController {
      
     //get commnent
     @GetMapping("/{projectId}")
-    public List<List<Comment>> getCommentsByProjectId(@PathVariable UUID projectId,
+    public List<List<CommentResDTO>> getCommentsByProjectId(@PathVariable UUID projectId,
             @RequestParam(required = false) Instant lastrootCreatedAt,
-            @RequestParam(defaultValue = "5") int limit){
+            @RequestParam(defaultValue = "2") int limit){
         return commentService.getCommentsByProjectId(projectId, lastrootCreatedAt, limit);
         // return "Hello";
     }
@@ -40,7 +40,7 @@ public class ProjectCommentController {
 
     //root comment
     @PostMapping("/{projectId}")
-    public Comment postComment(@PathVariable UUID projectId , @RequestBody CommentReqDTO commentReqDTO,
+    public CommentResDTO postComment(@PathVariable UUID projectId , @RequestBody CommentReqDTO commentReqDTO,
         @AuthenticationPrincipal UserPrincipal userPrincipal
     ){
         return commentService.postRootComment(projectId, commentReqDTO.getComment(), userPrincipal.getUsername());
@@ -49,16 +49,10 @@ public class ProjectCommentController {
 
     //reply comment
     @PostMapping("/{projectId}/reply/{parentId}")
-    public Comment postReplyComment(@PathVariable UUID projectId, @PathVariable UUID parentId, @RequestBody CommentReqDTO commentReqDTO,
+    public CommentResDTO postReplyComment(@PathVariable UUID projectId, @PathVariable UUID parentId, @RequestBody CommentReqDTO commentReqDTO,
         @AuthenticationPrincipal UserPrincipal userPrincipal
     ){
         return commentService.postReplyComment(projectId, parentId, commentReqDTO.getComment(), userPrincipal.getUsername());
     }
 }
 
-
-// {
-//     "threads": [ /* your List<List<Comment>> */ ],
-//     "nextCursor": "2026-02-10T16:41:22.861Z",
-//     "hasMore": true
-//   }

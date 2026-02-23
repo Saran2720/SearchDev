@@ -1,97 +1,131 @@
 package com.searchDev.SearchDev.Service.commentService;
 
 import org.springframework.beans.factory.annotation.Autowired;
-// import com.searchDev.SearchDev.Service.commentService.TimeFormatterUtil;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.searchDev.SearchDev.Repository.CommentRepo;
 import com.searchDev.SearchDev.Repository.ProjectRepo;
 import com.searchDev.SearchDev.Repository.UserRepo;
 import com.searchDev.SearchDev.Model.Comment;
 import com.searchDev.SearchDev.Model.Projects;
 import com.searchDev.SearchDev.Model.Users;
+import com.searchDev.SearchDev.DTO.CommentResDTO;
 import com.searchDev.SearchDev.ExceptionHandler.ResourceNotFoundException;
 import java.util.List;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.UUID;
+import java.time.Instant;
+import java.util.stream.Collectors;
 
 @Service
 public class CommentService {
-    private CommentRepo commentRepo;
-    private UserRepo userRepo;
-    private ProjectRepo projectRepo;
-    // private TimeFormatterUtil timeFormatterUtil;
+    private final CommentRepo commentRepo;
+    private final UserRepo userRepo;
+    private final ProjectRepo projectRepo;
 
     @Autowired
-    CommentService(CommentRepo commentRepo, UserRepo userRepo, ProjectRepo projectRepo) {
+    public CommentService(CommentRepo commentRepo, UserRepo userRepo, ProjectRepo projectRepo) {
         this.commentRepo = commentRepo;
         this.userRepo = userRepo;
         this.projectRepo = projectRepo;
     }
+    
 
-    public List<List<Comment>> getCommentsByProjectId(UUID projectId, Instant lastrootCreatedAt, int limit) {
-
-        List<Comment> comments;
-        if (lastrootCreatedAt == null) {
-            comments = commentRepo.findCommentsByProjectIdFirstPage(projectId, limit);
-        } else {
-            comments = commentRepo.findCommentsByProjectId(projectId, lastrootCreatedAt, limit);
-        }
+    //get comment for a project
+    @Transactional(readOnly = true)
+    public List<List<CommentResDTO>> getCommentsByProjectId(UUID projectId, Instant lastrootCreatedAt, int limit) {
+        List<Comment> comments = (lastrootCreatedAt == null) 
+            ? commentRepo.findCommentsByProjectIdFirstPage(projectId, limit)
+            : commentRepo.findCommentsByProjectId(projectId, lastrootCreatedAt, limit);
         
-        List<List<Comment>> threads = new ArrayList<>();
-        List<Comment> curr = null;
-        UUID prevRootId = null;
+        List<List<Comment>> threads = groupCommentsByThread(comments);
 
-        for (Comment c : comments) {
-            if (prevRootId == null || !c.getRootId().equals(prevRootId)) {
-                curr = new ArrayList<>();
-                threads.add(curr);
-                prevRootId = c.getRootId();
+        return threads.stream()
+            .map(thread -> thread.stream().map(this::toResDTO).collect(Collectors.toList()))
+            .collect(Collectors.toList());
+    }
+    
+    //group the projects
+    private List<List<Comment>> groupCommentsByThread(List<Comment> comments) {
+        List<List<Comment>> threads = new ArrayList<>();
+        UUID currentRootId = null;
+        
+        for (Comment comment : comments) {
+            if (currentRootId == null || !comment.getRootCommentId().equals(currentRootId)) {
+                threads.add(new ArrayList<>());
+                currentRootId = comment.getRootCommentId();
             }
-            curr.add(c);
+            threads.get(threads.size() - 1).add(comment);
         }
         return threads;
     }
 
-    //root comment 
-    public Comment postRootComment(UUID projectId, String comment, String email){
+
+    //root comment
+    @Transactional
+    public CommentResDTO postRootComment(UUID projectId, String content, String email) {
         Users user = userRepo.findByEmail(email);
         Projects project = getProjectById(projectId);
-
-
-        Comment newRootComment = Comment.builder()
-                                .parentId(null)
-                                .rootId(user.getId())
-                                .project(project)
-                                .content(comment)
-                                .user(user)
-                                .username(user.getUsername())
-                                .build();
         
-       return commentRepo.save(newRootComment);
+        Comment rootComment = Comment.builder()
+            .parrentCommentID(null)
+            .parentUser(null)
+            .rootCommentId(UUID.randomUUID()) // Temporary, will be updated after save
+            .project(project)
+            .content(content)
+            .user(user)
+            .username(user.getUsername())
+            .build();
+        
+        Comment saved = commentRepo.save(rootComment);
+        saved.setRootCommentId(saved.getCommentId());
+        Comment updated = commentRepo.save(saved);
+        return toResDTO(updated);
     }
+
+
 
     //reply comment
-    public Comment postReplyComment(UUID projectId, UUID parentId, String comment, String email){
-        
+    @Transactional
+    public CommentResDTO postReplyComment(UUID projectId, UUID parentCommentId, String content, String email) {
         Users user = userRepo.findByEmail(email);
         Projects project = getProjectById(projectId);
-        Comment parentComment = commentRepo.findCommentByCommentId(parentId);
+        Comment parentComment = commentRepo.findCommentByCommentId(parentCommentId);
 
-        Comment newReplyComment = Comment.builder()
-                                  .parentId(parentId)
-                                  .rootId(parentComment.getRootId())
-                                  .project(project)
-                                  .content(comment)
-                                  .user(user)
-                                  .username(user.getUsername())
-                                  .build();
-        return commentRepo.save(newReplyComment);
+        Comment reply = Comment.builder()
+            .parrentCommentID(parentCommentId)
+            .parentUser(parentComment.getUser())
+            .rootCommentId(parentComment.getRootCommentId())
+            .rootCreatedAt(parentComment.getRootCreatedAt())
+            .project(project)
+            .content(content)
+            .user(user)
+            .username(user.getUsername())
+            .build();
+            
+        return toResDTO(commentRepo.save(reply));
     }
 
 
-    private Projects getProjectById(UUID projectId){
+    private Projects getProjectById(UUID projectId) {
         return projectRepo.findById(projectId)
-        .orElseThrow(() -> new ResourceNotFoundException("Project not found with id : " + projectId));
+            .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+    }
+
+    private CommentResDTO toResDTO(Comment comment) {
+        Users author = comment.getUser();
+        Users repliedTo = comment.getParentUser();
+
+        return CommentResDTO.builder()
+            .commentId(comment.getCommentId())
+            .userId(author != null ? author.getId() : null)
+            .username(comment.getUsername() != null ? comment.getUsername() : (author != null ? author.getUsername() : null))
+            .parentCommentId(comment.getParrentCommentID())
+            .repliedToUserId(repliedTo != null ? repliedTo.getId() : null)
+            .repliedToUsername(repliedTo != null ? repliedTo.getUsername() : null)
+            .content(comment.getContent())
+            .createdAt(comment.getCreatedAt() != null ? comment.getCreatedAt().toString() : null)
+            .rootCommentId(comment.getRootCommentId())
+            .build();
     }
 }

@@ -13,6 +13,7 @@ import org.hibernate.annotations.GenericGenerator;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Id;
@@ -27,7 +28,7 @@ import jakarta.persistence.GeneratedValue;
 public class Comment {
     @Id
     @GeneratedValue(generator = "UUID")
-    @GenericGenerator(name = "comment_id", strategy = "org.hibernate.id.UUIDGenerator")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "comment_id", updatable = false, nullable = false)
     private UUID commentId;
 
@@ -42,11 +43,16 @@ public class Comment {
     @Column(name ="username", nullable = false)
     private String username;
 
-    @Column(name = "parent_id")
-    private UUID parentId;
+    @Column(name = "parent_comment_id")
+    private UUID parrentCommentID;  
 
-    @Column(name="root_id", nullable = false)
-    private UUID rootId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_user")
+    private Users parentUser;
+    
+
+    @Column(name="root_comment_id", nullable = false)
+    private UUID rootCommentId;
 
     @Column(nullable = false, length = 2000)
     private String content;
@@ -60,9 +66,17 @@ public class Comment {
     @PrePersist 
     protected void onCreate(){
         this.createdAt = LocalDateTime.now();
-        if(this.parentId==null){
-            this.rootCreatedAt=this.createdAt;
-            this.rootId= this.commentId;
+        if(this.parrentCommentID == null){
+            this.rootCreatedAt = this.createdAt;
         }
     }
+    
+    @PostPersist
+    protected void onPostPersist(){
+        // For root comments, set rootCommentId to commentId after ID is generated
+        if(this.parrentCommentID == null && this.rootCommentId == null){
+            this.rootCommentId = this.commentId;
+        }
+    }
+    
 }

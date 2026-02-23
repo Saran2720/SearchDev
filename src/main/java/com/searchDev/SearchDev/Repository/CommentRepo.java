@@ -17,32 +17,34 @@ public interface CommentRepo extends JpaRepository<Comment, UUID> {
         FROM comments c
         JOIN (
             SELECT DISTINCT
-                root_id,
+                root_comment_id,
                 root_created_at
             FROM comments
             WHERE project_id = :projectId
               AND root_created_at < :cursor
             ORDER BY root_created_at DESC
             LIMIT :limit
-        ) r ON c.root_id = r.root_id
+        ) r ON c.root_comment_id = r.root_comment_id
         ORDER BY r.root_created_at DESC, c.created_at ASC
         """, nativeQuery = true)
     List<Comment> findCommentsByProjectId(@Param("projectId") UUID projectId,
             @Param("cursor") Instant cursor, 
             @Param("limit") int limit);
 
+
+            
     @Query(value = """
         SELECT c.*
         FROM comments c
         JOIN (
             SELECT DISTINCT
-                root_id,
+                root_comment_id,
                 root_created_at
             FROM comments
             WHERE project_id = :projectId
             ORDER BY root_created_at DESC
             LIMIT :limit
-        ) r ON c.root_id = r.root_id
+        ) r ON c.root_comment_id = r.root_comment_id
         ORDER BY r.root_created_at DESC, c.created_at ASC
         """, nativeQuery = true)
     List<Comment> findCommentsByProjectIdFirstPage(@Param("projectId") UUID projectId,

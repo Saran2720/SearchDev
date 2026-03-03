@@ -121,6 +121,14 @@
 			<artifactId>aws-java-sdk-s3</artifactId>
 			<version>1.12.793</version>
 		</dependency>
+
+
+		<dependency>
+			<groupId>me.paulschwarz</groupId>
+			<artifactId>spring-dotenv</artifactId>
+			<version>4.0.0</version>			<!-- Use the latest version -->
+		</dependency>
+
 	</dependencies>
 
 	<build>

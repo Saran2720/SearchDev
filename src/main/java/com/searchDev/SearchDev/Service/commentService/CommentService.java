@@ -63,7 +63,7 @@ public class CommentService {
 
     //root comment
     @Transactional
-    public CommentResDTO postRootComment(UUID projectId, String content, String email) {
+    public boolean postRootComment(UUID projectId, String content, String email) {
         Users user = userRepo.findByEmail(email);
         Projects project = getProjectById(projectId);
         
@@ -80,14 +80,17 @@ public class CommentService {
         Comment saved = commentRepo.save(rootComment);
         saved.setRootCommentId(saved.getCommentId());
         Comment updated = commentRepo.save(saved);
-        return toResDTO(updated);
+        if(updated!=null){
+            return true;
+        }
+        return false;
     }
 
 
 
     //reply comment
     @Transactional
-    public CommentResDTO postReplyComment(UUID projectId, UUID parentCommentId, String content, String email) {
+    public boolean postReplyComment(UUID projectId, UUID parentCommentId, String content, String email) {
         Users user = userRepo.findByEmail(email);
         Projects project = getProjectById(projectId);
         Comment parentComment = commentRepo.findCommentByCommentId(parentCommentId);
@@ -103,7 +106,10 @@ public class CommentService {
             .username(user.getUsername())
             .build();
             
-        return toResDTO(commentRepo.save(reply));
+        commentRepo.save(reply);
+
+        if(reply!=null) return true;
+        return false;
     }
 
 

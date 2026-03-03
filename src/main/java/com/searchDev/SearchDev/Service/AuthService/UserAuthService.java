@@ -35,10 +35,10 @@ public class UserAuthService {
     @Autowired
     private MyUserDetailsService userDetailsService;
 
-    @Value("${app.auth.reset-link-base-url:http://localhost:8080/reset-password}")
+    @Value("${app.auth.reset-link-base-url}")
     private String backendResetLinkBaseUrl;
 
-    @Value("${app.frontend.reset-form-url:http://localhost:3000/reset-password}")
+    @Value("${app.frontend.reset-form-url}")
     private String frontendResetFormUrl;
 
     public Users register(Users user) {
@@ -101,7 +101,6 @@ public class UserAuthService {
             throw new RuntimeException("Failed to process logout: " + e.getMessage(), e);
         }
     }
-
 
     // refresh token
     public HttpHeaders refresh(String refreshToken) {

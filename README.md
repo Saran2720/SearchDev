@@ -40,3 +40,28 @@ Analytics dashboard for project engagement and user activity.
 Clone the repository:
 git clone https://github.com/Saran2720/SearchDev.git
 Navigate to backend folder and start Spring Boot server.
+
+## Local Docker testing
+
+### Option A: full local stack (Postgres + Redis + Backend)
+- **Create** `backend\env.local` using `backend\env.example` as a template.
+- **Run**:
+  - `docker compose up --build`
+
+This will start:
+- **backend**: `http://localhost:8080`
+- **postgres**: `localhost:5432` (data persisted in a docker volume)
+- **redis**: `localhost:6379`
+
+### Option B: use AWS RDS + local Redis
+- **Create** `backend\env.rds.local` with at least:
+  - `SPRING_DATASOURCE_URL=jdbc:postgresql://<your-rds-endpoint>:5432/<dbName>`
+  - `SPRING_DATASOURCE_USERNAME=...`
+  - `SPRING_DATASOURCE_PASSWORD=...`
+  - `SPRING_DATA_REDIS_HOST=redis`
+  - `SPRING_DATA_REDIS_PORT=6379`
+- **Run**:
+  - `docker compose -f docker-compose.rds.yml up --build`
+
+Important for RDS:
+- Your RDS **Security Group must allow inbound 5432 from your current public IP** (for local testing).
